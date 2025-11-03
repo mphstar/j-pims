@@ -4,7 +4,7 @@ import { FancyButton } from '../atoms/FancyButton';
 import Flip from '../FlipText';
 import { SectionData } from './Section';
 
-export const CarouselSection = forwardRef<HTMLDivElement, { data: SectionData; index: number; isActive: boolean }>(({ data, index, isActive }, ref) => {
+export const CarouselSection = forwardRef<HTMLDivElement, { data: SectionData; index: number; isActive: boolean; onCtaClick?: (data: SectionData) => void }>(({ data, index, isActive, onCtaClick }, ref) => {
     const { bg, title, subtitle, content, ctaHref, overlays, align = 'left' } = data;
     const sectionRef = useRef<HTMLDivElement | null>(null);
     const overlayRef = sectionRef;
@@ -91,7 +91,7 @@ export const CarouselSection = forwardRef<HTMLDivElement, { data: SectionData; i
             
             <div className="absolute inset-0 -z-10 bg-gradient-to-b from-black/60 via-black/30 to-black/60" />
             
-            {overlays && overlays.length > 0 && (
+                        {overlays && overlays.length > 0 && (
                 <motion.div 
                     key={cycle} 
                     className="absolute inset-0 -z-[8] pointer-events-none select-none overlay-container" 
@@ -102,27 +102,97 @@ export const CarouselSection = forwardRef<HTMLDivElement, { data: SectionData; i
                         ease: "easeOut"
                     }}
                 >
-                    {overlays.map((src, i) => { 
-                        const depth = (i + 1) / overlays.length; 
-                        const mul = 6 * depth; 
-                        const driftMul = depth / 10; 
-                        return (
-                            <div 
-                                key={i} 
-                                style={{ 
-                                    position: 'absolute', 
-                                    inset: 0, 
-                                    backgroundImage: `url(${src})`, 
-                                    backgroundRepeat: 'no-repeat', 
-                                    backgroundPosition: 'center', 
-                                    backgroundSize: 'cover', 
-                                    transform: `translate3d(calc(var(--oxp,0)*${mul}%) , calc(var(--oyp,0)*${mul}% + var(--dy,0)*${driftMul}),0) rotate(calc(var(--oxp,0)*${(depth * 5).toFixed(3)}deg)) scale(${(1 + depth * 0.05).toFixed(3)})`, 
-                                    willChange: 'transform' 
-                                }} 
-                                aria-hidden="true" 
-                            />
-                        ); 
-                    })}
+                                        {overlays.map((overlay, i) => {
+                                                // Placement logic - same as PariwisataFormBase
+                                                let stylePos: React.CSSProperties = {};
+                                                let translateX = '0';
+                                                let translateY = '0';
+                                                
+                                                // Horizontal
+                                                if (overlay.position_horizontal === 'left') {
+                                                    stylePos.left = '0';
+                                                } else if (overlay.position_horizontal === 'right') {
+                                                    stylePos.right = '0';
+                                                } else if (overlay.position_horizontal === 'center') {
+                                                    stylePos.left = '50%';
+                                                    translateX = '-50%';
+                                                } else {
+                                                    stylePos.left = '50%';
+                                                    translateX = '-50%';
+                                                }
+                                                
+                                                // Vertical
+                                                if (overlay.position_vertical === 'top') {
+                                                    stylePos.top = '0';
+                                                } else if (overlay.position_vertical === 'bottom') {
+                                                    stylePos.bottom = '0';
+                                                } else if (overlay.position_vertical === 'center') {
+                                                    stylePos.top = '50%';
+                                                    translateY = '-50%';
+                                                } else {
+                                                    stylePos.top = '0';
+                                                }
+                                                
+                                                // Size
+                                                if (overlay.width) stylePos.width = `${overlay.width}px`;
+                                                if (overlay.height) stylePos.height = `${overlay.height}px`;
+                                                
+                                                // Fallback max size if no explicit size set
+                                                const containerClass = overlay.width || overlay.height ? '' : 'max-w-[240px] max-h-[240px]';
+                                                
+                                                // Map custom 'crop' semantic to 'cover'
+                                                const fit = overlay.object_fit === 'crop' ? 'cover' : (overlay.object_fit ?? 'contain');
+                                                
+                                                // Image styling
+                                                const imgStyle: React.CSSProperties = {
+                                                    objectFit: fit,
+                                                    width: '100%',
+                                                    height: '100%'
+                                                };
+                                                
+                                                // Animation variants
+                                                const overlayVariants = {
+                                                  hidden: { 
+                                                    opacity: 0, 
+                                                    y: 100,
+                                                    scale: 0.8
+                                                  },
+                                                  visible: { 
+                                                    opacity: 1, 
+                                                    y: 0,
+                                                    scale: 1
+                                                  }
+                                                };
+                                                
+                                                return (
+                                                    <motion.div
+                                                        key={i}
+                                                        initial="hidden"
+                                                        animate={isActive ? "visible" : "hidden"}
+                                                        transition={{
+                                                          duration: 0.8,
+                                                          delay: i * 0.15,
+                                                          ease: [0.25, 0.46, 0.45, 0.94]
+                                                        }}
+                                                        variants={overlayVariants}
+                                                        style={{
+                                                            position: 'absolute',
+                                                            transform: `translate(${translateX}, ${translateY})`,
+                                                            willChange: 'transform, opacity',
+                                                            ...stylePos,
+                                                        }}
+                                                        className={`select-none ${containerClass}`}
+                                                        aria-hidden="true"
+                                                    >
+                                                        <img 
+                                                            src={overlay.url} 
+                                                            draggable={false} 
+                                                            style={imgStyle} 
+                                                            className='pointer-events-none' 
+                                                        />
+                                                    </motion.div>
+                                                );
+                                        })}
                 </motion.div>
             )}
             
@@ -135,7 +205,18 @@ export const CarouselSection = forwardRef<HTMLDivElement, { data: SectionData; i
                 {title.trim().split(/\s+/).map(w => <Flip key={w}>{w}</Flip>)}
                 {subtitle && <p className="mt-4 text-white/90 md:text-xl font-light tracking-wide">{subtitle}</p>}
                 {content && <div className="mt-8">{content}</div>}
-                {ctaHref && <div className="mt-10"><FancyButton href={ctaHref}>{data.ctaLabel ?? 'Lihat'}</FancyButton></div>}
+                {ctaHref && (
+                    <div className="mt-10">
+                        <FancyButton
+                            href={ctaHref}
+                            onClick={(e) => {
+                                try { onCtaClick?.(data); } catch {}
+                            }}
+                        >
+                            {data.ctaLabel ?? 'Lihat'}
+                        </FancyButton>
+                    </div>
+                )}
             </motion.div>
             
             <div className="absolute bottom-6 left-6 text-white/60 font-mono">{String(index + 1).padStart(2, '0')}</div>

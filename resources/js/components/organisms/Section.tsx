@@ -6,6 +6,8 @@ import Flip from '../FlipText';
 
 export type SectionData = {
     id: string;
+    slug?: string;
+    label?: string;
     title: string;
     navLabel?: string;
     subtitle?: string;
@@ -18,11 +20,13 @@ export type SectionData = {
         position_horizontal: 'left' | 'center' | 'right' | null;
         position_vertical: 'top' | 'center' | 'bottom' | null;
         object_fit: 'contain' | 'cover' | 'fill' | 'none' | 'scale-down' | 'crop' | null;
+        width?: number | null;
+        height?: number | null;
     }[];
     align?: 'left' | 'right';
 };
 
-export const Section = forwardRef<HTMLDivElement, { data: SectionData; index: number }>(({ data, index }, ref) => {
+export const Section = forwardRef<HTMLDivElement, { data: SectionData; index: number; onCtaClick?: (data: SectionData) => void }>(({ data, index, onCtaClick }, ref) => {
     const { bg, title, subtitle, content, ctaHref, overlays, align = 'left' } = data;
 
     const sectionRef = useRef<HTMLDivElement | null>(null);
@@ -40,7 +44,7 @@ export const Section = forwardRef<HTMLDivElement, { data: SectionData; index: nu
     useEffect(() => { if (inView && !prev.current) { setCycle(c => c + 1); } prev.current = inView; }, [inView]);
     const handleMove = (e: React.MouseEvent) => { if (!window.matchMedia('(pointer:fine)').matches) return; const rect = (e.currentTarget as HTMLElement).getBoundingClientRect(); pos.current.tx = e.clientX - rect.left; pos.current.ty = e.clientY - rect.top; };
     return (
-        <section id={data.id} ref={(el: HTMLDivElement | null) => { sectionRef.current = el; if (typeof ref === 'function') ref(el as any); else if (ref && 'current' in ref) (ref as any).current = el; }} onMouseMove={handleMove} className={`h-screen w-screen snap-start relative isolate flex items-center bg-black ${align === 'right' ? 'justify-end' : 'justify-start'}`}>
+        <section id={data.id} ref={(el: HTMLDivElement | null) => { sectionRef.current = el; if (typeof ref === 'function') ref(el as any); else if (ref && 'current' in ref) (ref as any).current = el; }} onMouseMove={handleMove} className={`h-screen w-screen snap-start relative isolate flex items-center bg-black ${align === 'right' ? 'justify-end' : 'justify-start'}`} style={{ scrollSnapStop: 'always' }}>
             {/* Black background layer to prevent unwanted images showing through */}
             <div className="absolute inset-0 -z-20 bg-black" />
             {bg && (
@@ -76,44 +80,116 @@ export const Section = forwardRef<HTMLDivElement, { data: SectionData; index: nu
                     {overlays.map((overlay, i) => {
                         // Placement logic using position_horizontal and position_vertical
                         let stylePos: React.CSSProperties = {};
-                        if (overlay.position_horizontal && overlay.position_vertical) {
-                          if (overlay.position_horizontal === 'center' && overlay.position_vertical === 'center') {
-                            stylePos = { top: '50%', left: '50%', transform: 'translate(-50%, -50%)' };
-                          } else {
-                            if (overlay.position_vertical === 'top') stylePos.top = 0;
-                            if (overlay.position_vertical === 'center') stylePos.top = '50%';
-                            if (overlay.position_vertical === 'bottom') stylePos.bottom = 0;
-                            if (overlay.position_horizontal === 'left') stylePos.left = 0;
-                            if (overlay.position_horizontal === 'center') stylePos.left = '50%';
-                            if (overlay.position_horizontal === 'right') stylePos.right = 0;
-                            if (overlay.position_horizontal === 'center' && overlay.position_vertical !== 'center') stylePos.transform = 'translateX(-50%)';
-                            if (overlay.position_vertical === 'center' && overlay.position_horizontal !== 'center') stylePos.transform = 'translateY(-50%)';
-                          }
+                        let translateX = '0';
+                        let translateY = '0';
+                        
+                        // Horizontal
+                        if (overlay.position_horizontal === 'left') {
+                            stylePos.left = '0';
+                        } else if (overlay.position_horizontal === 'right') {
+                            stylePos.right = '0';
+                        } else if (overlay.position_horizontal === 'center') {
+                            stylePos.left = '50%';
+                            translateX = '-50%';
+                        } else {
+                            // default center if nothing chosen
+                            stylePos.left = '50%';
+                            translateX = '-50%';
                         }
+                        
+                        // Vertical
+                        if (overlay.position_vertical === 'top') {
+                            stylePos.top = '0';
+                        } else if (overlay.position_vertical === 'bottom') {
+                            stylePos.bottom = '0';
+                        } else if (overlay.position_vertical === 'center') {
+                            stylePos.top = '50%';
+                            translateY = '-50%';
+                        } else {
+                            // default top
+                            stylePos.top = '0';
+                        }
+                        
+                        // Size
+                        if (overlay.width) stylePos.width = `${overlay.width}px`;
+                        if (overlay.height) stylePos.height = `${overlay.height}px`;
+                        
+                        // Fallback max size if no explicit size set
+                        const containerClass = overlay.width || overlay.height ? '' : 'max-w-[240px] max-h-[240px]';
+                        
+                        // Map custom 'crop' semantic to 'cover' for CSS object-fit
+                        const fit = overlay.object_fit === 'crop' ? 'cover' : (overlay.object_fit ?? 'contain');
+                        
+                        // Image styling
+                        const imgStyle: React.CSSProperties = {
+                            objectFit: fit,
+                            width: '100%',
+                            height: '100%'
+                        };
+                        
+                        // Animation variants for each overlay
+                        const overlayVariants = {
+                          hidden: { 
+                            opacity: 0, 
+                            y: 100,
+                            scale: 0.8
+                          },
+                          visible: { 
+                            opacity: 1, 
+                            y: 0,
+                            scale: 1
+                          }
+                        };
+                        
                         return (
-                          <div
+                          <motion.div
                             key={i}
+                            initial="hidden"
+                            whileInView="visible"
+                            viewport={{ amount: 0.3, once: false }}
+                            transition={{
+                              duration: 0.8,
+                              delay: i * 0.15,
+                              ease: [0.25, 0.46, 0.45, 0.94]
+                            }}
+                            variants={overlayVariants}
                             style={{
                               position: 'absolute',
-                              backgroundImage: `url(${overlay.url})`,
-                              backgroundRepeat: 'no-repeat',
-                              backgroundPosition: 'center',
-                              backgroundSize: overlay.object_fit || 'cover',
-                              width: '180px', height: '180px',
+                              transform: `translate(${translateX}, ${translateY})`,
+                              willChange: 'transform, opacity',
                               ...stylePos,
-                              willChange: 'transform',
                             }}
+                            className={`select-none ${containerClass}`}
                             aria-hidden="true"
-                          />
+                          >
+                            <img 
+                              src={overlay.url} 
+                              draggable={false} 
+                              style={imgStyle} 
+                              className='pointer-events-none' 
+                            />
+                          </motion.div>
                         );
                     })}
                 </motion.div>
             )}
-            <motion.div initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ amount: 0.6, once: false }} transition={{ duration: 0.6, ease: 'easeOut' }} className={`pl-4 md:pl-8 pr-4 md:pr-8 max-w-5xl w-full ${align === 'right' ? 'text-right mr-12' : 'text-left'}`}>
+            <motion.div initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ amount: 0.6, once: false }} transition={{ duration: 0.6, ease: 'easeOut' }} className={`pl-4 md:pl-8 pr-4 md:pr-8 max-w-5xl w-full ${align === 'right' ? 'text-right mr-12' : 'text-left ml-12'}`}>
                 {title.trim().split(/\s+/).map(w => <Flip key={w}>{w}</Flip>)}
                 {subtitle && <p className="mt-4 text-white/90 md:text-xl font-light tracking-wide">{subtitle}</p>}
                 {content && <div className="mt-8">{content}</div>}
-                {ctaHref && <div className="mt-10"><FancyButton href={ctaHref}>{data.ctaLabel ?? 'Lihat'}</FancyButton></div>}
+                {ctaHref && (
+                    <div className="mt-10">
+                        <FancyButton
+                            href={ctaHref}
+                            onClick={(e) => {
+                                // allow parent to record personalization before navigation
+                                try { onCtaClick?.(data); } catch {}
+                            }}
+                        >
+                            {data.ctaLabel ?? 'Lihat'}
+                        </FancyButton>
+                    </div>
+                )}
             </motion.div>
             <div className="absolute bottom-6 left-6 text-white/60 font-mono">{String(index + 1).padStart(2, '0')}</div>
         </section>

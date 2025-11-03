@@ -15,6 +15,8 @@ interface OverlayType {
     position_horizontal: 'left' | 'center' | 'right' | null;
     position_vertical: 'top' | 'center' | 'bottom' | null;
     object_fit: 'contain' | 'cover' | 'fill' | 'none' | 'scale-down' | 'crop' | null;
+    width?: number | null;
+    height?: number | null;
     __file?: File;
     __unsaved?: boolean;
     __deleted?: boolean;
@@ -155,6 +157,8 @@ export default function PariwisataFormBase({ item, mode, overlays = [] }: Props)
             position_horizontal: null,
             position_vertical: null,
             object_fit: null,
+            width: null,
+            height: null,
             __file: file,
             __unsaved: true,
             __dirty: true
@@ -220,6 +224,8 @@ export default function PariwisataFormBase({ item, mode, overlays = [] }: Props)
             if (overlay.position_horizontal) formData.append('position_horizontal', overlay.position_horizontal);
             if (overlay.position_vertical) formData.append('position_vertical', overlay.position_vertical);
             if (overlay.object_fit) formData.append('object_fit', overlay.object_fit);
+            if (overlay.width) formData.append('width', overlay.width.toString());
+            if (overlay.height) formData.append('height', overlay.height.toString());
                     router.post(route('pariwisata.overlays.store', item.id), formData, {
                         onError: () => toast.error('Gagal simpan overlay baru'),
                         onSuccess: () => toast.success('Overlay dibuat'),
@@ -233,7 +239,9 @@ export default function PariwisataFormBase({ item, mode, overlays = [] }: Props)
                     router.post(route('pariwisata.overlays.update', overlay.id), {
                 position_horizontal: overlay.position_horizontal,
                 position_vertical: overlay.position_vertical,
-                object_fit: overlay.object_fit
+                object_fit: overlay.object_fit,
+                width: overlay.width,
+                height: overlay.height
             }, {
                         onError: () => toast.error('Gagal update overlay'),
                         onSuccess: () => toast.success('Overlay disimpan'),
@@ -262,6 +270,8 @@ export default function PariwisataFormBase({ item, mode, overlays = [] }: Props)
                 if (c.position_horizontal) formData.append('position_horizontal', c.position_horizontal);
                 if (c.position_vertical) formData.append('position_vertical', c.position_vertical);
                 if (c.object_fit) formData.append('object_fit', c.object_fit);
+                if (c.width) formData.append('width', c.width.toString());
+                if (c.height) formData.append('height', c.height.toString());
                 await inertiaPost(route('pariwisata.overlays.store', item.id), formData, { forceFormData: true, onError: () => toast.error('Gagal simpan overlay baru') }).then(() => {
                     dirtyRef.current.delete(c.id);
                     setOverlayList(prev => prev.map(o => o.id === c.id ? { ...o, __unsaved: false, __dirty: false } : o));
@@ -271,7 +281,9 @@ export default function PariwisataFormBase({ item, mode, overlays = [] }: Props)
                 await inertiaPost(route('pariwisata.overlays.update', u.id), {
                     position_horizontal: u.position_horizontal,
                     position_vertical: u.position_vertical,
-                    object_fit: u.object_fit
+                    object_fit: u.object_fit,
+                    width: u.width,
+                    height: u.height
                 }, { onError: () => toast.error('Gagal update overlay #' + u.id) }).then(() => {
                     dirtyRef.current.delete(u.id);
                     setOverlayList(prev => prev.map(o => o.id === u.id ? { ...o, __dirty: false } : o));
@@ -477,6 +489,30 @@ export default function PariwisataFormBase({ item, mode, overlays = [] }: Props)
                                                                     </SelectContent>
                                                                 </Select>
                                                             </div>
+                                                            <div className='grid grid-cols-2 gap-2'>
+                                                                <div className='space-y-1'>
+                                                                    <Label className='text-[10px]'>Width (px)</Label>
+                                                                    <Input
+                                                                        type='number'
+                                                                        min='1'
+                                                                        value={ov.width ?? ''}
+                                                                        onChange={(e) => updateOverlayLocal(ov.id, { width: e.target.value ? parseInt(e.target.value) : null })}
+                                                                        className='h-7 text-[10px] px-2'
+                                                                        placeholder='Auto'
+                                                                    />
+                                                                </div>
+                                                                <div className='space-y-1'>
+                                                                    <Label className='text-[10px]'>Height (px)</Label>
+                                                                    <Input
+                                                                        type='number'
+                                                                        min='1'
+                                                                        value={ov.height ?? ''}
+                                                                        onChange={(e) => updateOverlayLocal(ov.id, { height: e.target.value ? parseInt(e.target.value) : null })}
+                                                                        className='h-7 text-[10px] px-2'
+                                                                        placeholder='Auto'
+                                                                    />
+                                                                </div>
+                                                            </div>
                                                         </div>
                                                         <div className='flex gap-1 pt-1'>
                                                             <Button size='sm' variant='outline' onClick={() => saveOverlay(ov.id)} className='h-6 px-2 text-[10px]'>Save</Button>
@@ -557,11 +593,27 @@ const OverlayAligned: React.FC<{ overlay: OverlayType }> = ({ overlay }) => {
     const translateX = overlay.position_horizontal === 'center' || overlay.position_horizontal == null ? '-50%' : '0';
     const translateY = overlay.position_vertical === 'center' ? '-50%' : '0';
     style.transform = `translate(${translateX}, ${translateY})`;
+    
+    // Size
+    if (overlay.width) style.width = `${overlay.width}px`;
+    if (overlay.height) style.height = `${overlay.height}px`;
+    
     // Map custom 'crop' semantic to 'cover' for CSS object-fit
     const fit = overlay.object_fit === 'crop' ? 'cover' : (overlay.object_fit ?? 'contain');
+    
+    // Image styling
+    const imgStyle: React.CSSProperties = {
+        objectFit: fit,
+        width: '100%',
+        height: '100%'
+    };
+    
+    // Fallback max size if no explicit size set
+    const containerClass = overlay.width || overlay.height ? '' : 'max-w-[240px] max-h-[240px]';
+    
     return (
-        <div style={style} className='select-none'>
-            <img src={overlay.overlay_url} draggable={false} style={{ objectFit: fit }} className='pointer-events-none max-w-[240px] max-h-[240px]' />
+        <div style={style} className={`select-none ${containerClass}`}>
+            <img src={overlay.overlay_url} draggable={false} style={imgStyle} className='pointer-events-none' />
         </div>
     );
 };

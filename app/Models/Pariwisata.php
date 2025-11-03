@@ -16,6 +16,12 @@ class Pariwisata extends Model
 
     public function overlays()
     {
-        return $this->hasMany(PariwisataOverlays::class, 'pariwisata_id');
+        // Destination-level overlays (not tied to a specific product)
+        return $this->hasMany(PariwisataOverlays::class, 'pariwisata_id')->whereNull('product_id');
+    }
+
+    public function products()
+    {
+        return $this->hasMany(PariwisataProduct::class, 'pariwisata_id');
     }
 }

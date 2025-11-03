@@ -202,6 +202,11 @@ export const columns: ColumnDef<PariwisataType>[] = [
                             >Edit Data</DropdownMenuItem>
                             <DropdownMenuItem
                                 onSelect={() => {
+                                    router.visit(route('product.by-pariwisata', payment.id));
+                                }}
+                            >Kelola Produk</DropdownMenuItem>
+                            <DropdownMenuItem
+                                onSelect={() => {
                                     // Tutup dialog edit jika masih terbuka agar tidak ada dua overlay menumpuk
                                     if (store.open) {
                                         store.setOpen(false);

@@ -1,9 +1,10 @@
 import { motion } from 'framer-motion';
 import React from 'react';
-export function FancyButton({ href, children }: { href: string; children: React.ReactNode }) {
+export function FancyButton({ href, children, onClick }: { href: string; children: React.ReactNode; onClick?: (e: React.MouseEvent<HTMLAnchorElement>) => void }) {
   return (
     <motion.a
       href={href}
+      onClick={onClick}
       whileHover={{ scale: 1.04 }}
       whileTap={{ scale: 0.95 }}
       className="group relative inline-flex items-center gap-2 px-5 py-3 rounded-sm border border-white/80 text-white text-sm font-medium tracking-wide overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-black bg-transparent"

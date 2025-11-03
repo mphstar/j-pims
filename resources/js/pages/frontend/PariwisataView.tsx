@@ -9,6 +9,7 @@ import { ScrollProgress } from "@/components/molecules/ScrollProgress";
 import { ArrowNav } from "@/components/molecules/ArrowNav";
 import { NavDots } from "@/components/molecules/NavDots";
 import { Header } from "@/components/templates/Header";
+import { OnboardingDialog } from "@/components/molecules/OnboardingDialog";
 
 // Database interfaces
 interface OverlayType {
@@ -17,12 +18,14 @@ interface OverlayType {
   position_horizontal: 'left' | 'center' | 'right' | null;
   position_vertical: 'top' | 'center' | 'bottom' | null;
   object_fit: 'contain' | 'cover' | 'fill' | 'none' | 'scale-down' | 'crop' | null;
+  width?: number | null;
+  height?: number | null;
 }
 
 interface PariwisataType {
   id: number;
   title: string;
-  label: string;
+  label: string | null;
   subtitle: string;
   slug: string;
   content: string;
@@ -33,47 +36,144 @@ interface PariwisataType {
   overlays: OverlayType[];
 }
 
+interface ProductType extends PariwisataType {}
+
+interface DestinationType extends PariwisataType {
+  products?: ProductType[];
+}
+
 interface SettingType {
   style: 'column' | 'row';
 }
 
 interface Props {
-  pariwisata: PariwisataType[];
+  pariwisata?: PariwisataType[];
+  destinations?: DestinationType[];
   setting: SettingType;
 }
 
 // Function to convert database data to SectionData format
-function convertToSectionData(pariwisataData: PariwisataType[]): SectionData[] {
-  return pariwisataData.map((item, index) => ({
-    id: item.slug || `section-${index}`,
-    title: item.title,
-    navLabel: item.label || item.title.substring(0, 8),
-    subtitle: item.subtitle,
-    bg: item.background_url,
-  overlays: item.overlays?.map(overlay => ({
-    url: overlay.overlay_url,
-    position_horizontal: overlay.position_horizontal,
-    position_vertical: overlay.position_vertical,
-    object_fit: overlay.object_fit
-  })) || [],
-    content: (
-      <div className="max-w-xl space-y-4">
-        <p className="text-white/90">
-          {item.content}
-        </p>
-      </div>
-    ),
-    ctaHref: item.cta_href || "#",
-    ctaLabel: item.cta_label || "Lihat",
-  }));
-}
+// no-op: conversion moved inline to allow injecting product switcher UI
 
 
 
-export default function PariwisataView({ pariwisata, setting }: Props) {
-  // Convert database data to existing SectionData format
-  const SECTIONS = convertToSectionData(pariwisata);
-  const isRowLayout = setting.style === 'row';
+export default function PariwisataView({ pariwisata, destinations, setting }: Props) {
+  // ===== Personalization State (localStorage backed) =====
+  const safeStorage = typeof window !== 'undefined' ? window.localStorage : undefined;
+  // Layout: fixed to column for snap scroll experience
+  const layout: 'row' | 'column' = 'column';
+
+  // Label preferences and recent views
+  type RecentItem = { slug: string; title: string; bg?: string };
+  const [recent, setRecent] = useState<RecentItem[]>(() => {
+    try { return JSON.parse(safeStorage?.getItem('jp_recent') || '[]') as RecentItem[]; } catch { return []; }
+  });
+  useEffect(() => { try { safeStorage?.setItem('jp_recent', JSON.stringify(recent.slice(0, 6))); } catch {} }, [recent]);
+
+  const [labelCounts, setLabelCounts] = useState<Record<string, number>>(() => {
+    try { return JSON.parse(safeStorage?.getItem('jp_label_counts') || '{}') as Record<string, number>; } catch { return {}; }
+  });
+  useEffect(() => { try { safeStorage?.setItem('jp_label_counts', JSON.stringify(labelCounts)); } catch {} }, [labelCounts]);
+
+  // Normalize data: prefer destinations; fallback to pariwisata -> destinations with single product
+  const normalizedDestinations: DestinationType[] = (destinations && destinations.length > 0)
+    ? destinations
+    : (pariwisata || []).map(p => ({ ...p, products: [{ ...p }] }));
+
+  const allLabels = Array.from(new Set(normalizedDestinations.map(p => p.label).filter(Boolean))) as string[];
+  const [prefLabels, setPrefLabels] = useState<string[]>(() => {
+    try { return JSON.parse(safeStorage?.getItem('jp_pref_labels') || '[]') as string[]; } catch { return []; }
+  });
+  useEffect(() => { try { safeStorage?.setItem('jp_pref_labels', JSON.stringify(prefLabels)); } catch {} }, [prefLabels]);
+
+  const [reducedMotion, setReducedMotion] = useState<boolean>(() => {
+    try { return (safeStorage?.getItem('jp_motion') || 'high') === 'reduced'; } catch { return false; }
+  });
+  useEffect(() => { try { safeStorage?.setItem('jp_motion', reducedMotion ? 'reduced' : 'high'); } catch {} }, [reducedMotion]);
+
+  const [onboardingOpen, setOnboardingOpen] = useState<boolean>(true);
+
+  const recordClick = (sec: SectionData) => {
+    // recent
+    if (sec.slug) {
+      setRecent(prev => {
+        const filtered = prev.filter(r => r.slug !== sec.slug);
+        return [{ slug: sec.slug!, title: sec.title, bg: sec.bg }, ...filtered].slice(0, 6);
+      });
+    }
+    // label weights
+    if (sec.label) {
+      setLabelCounts(prev => ({ ...prev, [sec.label!]: (prev[sec.label!] || 0) + 1 }));
+    }
+  };
+
+  // Selected product index per destination (persist per slug)
+  const [selectedProductIdx, setSelectedProductIdx] = useState<Record<string, number>>(() => {
+    try { return JSON.parse(safeStorage?.getItem('jp_selected_product_idx') || '{}') as Record<string, number>; } catch { return {}; }
+  });
+  useEffect(() => { try { safeStorage?.setItem('jp_selected_product_idx', JSON.stringify(selectedProductIdx)); } catch {} }, [selectedProductIdx]);
+
+  const setProductForSlug = (slug: string, idx: number) => setSelectedProductIdx(prev => ({ ...prev, [slug]: idx }));
+
+  // Deep-linking will be placed after preloader state is available
+
+  // Convert destinations (with selected product) to SectionData[]
+  const baseSections: SectionData[] = normalizedDestinations.map((dest, index) => {
+    const products = dest.products && dest.products.length > 0 ? dest.products : [{ ...dest } as ProductType];
+    const activeIdx = Math.min(Math.max(0, selectedProductIdx[dest.slug] ?? 0), products.length - 1);
+    const active = products[activeIdx];
+    const overlays = (active.overlays && active.overlays.length > 0 ? active.overlays : dest.overlays) || [];
+    const alignVal = (active.align || dest.align) as 'left' | 'right';
+    return {
+      id: dest.slug || `section-${index}`,
+      slug: dest.slug,
+      label: dest.label ?? undefined,
+      title: active.title || dest.title,
+  navLabel: dest.label || (dest.title ? dest.title.substring(0, 8) : 'Destinasi'),
+      subtitle: active.subtitle || dest.subtitle,
+      bg: active.background_url || dest.background_url,
+      overlays: overlays.map(overlay => ({
+        url: overlay.overlay_url,
+        position_horizontal: overlay.position_horizontal,
+        position_vertical: overlay.position_vertical,
+        object_fit: overlay.object_fit,
+        width: overlay.width,
+        height: overlay.height
+      })),
+      align: active.align || dest.align,
+      content: (
+        <div className={"max-w-xl space-y-4 " + (alignVal === 'right' ? 'ml-auto text-right' : '')}>
+          <p className="text-white/90">{active.content || dest.content}</p>
+          {products.length > 1 && (
+            <div className="pt-4">
+              <div className={"text-xs text-white/70 mb-2 " + (alignVal === 'right' ? 'text-right' : '')}>Pilih varian produk:</div>
+              <div className={"flex gap-2 overflow-x-auto no-scrollbar py-1 pr-1 " + (alignVal === 'right' ? 'justify-end' : '')}>
+                {products.map((p, pi) => (
+                  <button
+                    key={p.id}
+                    onClick={() => setProductForSlug(dest.slug, pi)}
+                    className={`px-3 h-9 rounded-full border text-xs whitespace-nowrap ${pi===activeIdx ? 'border-white text-white bg-white/10' : 'border-white/20 text-white/80 hover:text-white hover:bg-white/10'}`}
+                    aria-current={pi===activeIdx ? 'true' : undefined}
+                  >
+                    {p.title}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      ),
+  ctaHref: dest.slug ? `/${dest.slug}/product` : (active.cta_href || dest.cta_href || '#'),
+      ctaLabel: active.cta_label || dest.cta_label || 'Lihat',
+    } as SectionData;
+  });
+  // Personalized ordering only (no filtering)
+  const SECTIONS = [...baseSections].sort((a, b) => {
+    const wa = (a.label ? (labelCounts[a.label] || 0) : 0) + (a.label && prefLabels.includes(a.label) ? 100 : 0);
+    const wb = (b.label ? (labelCounts[b.label] || 0) : 0) + (b.label && prefLabels.includes(b.label) ? 100 : 0);
+    return wb - wa;
+  });
+  const isRowLayout = false;
   
   // ==== Asset Preloader (background & overlays) ====
   const [progress, setProgress] = useState(0); // 0..1
@@ -82,11 +182,17 @@ export default function PariwisataView({ pariwisata, setting }: Props) {
   useEffect(() => {
     if (preloadStarted.current) return; // only once
     preloadStarted.current = true;
-    const urls = Array.from(
-      new Set(
-        SECTIONS.flatMap(s => [s.bg, ...(s.overlays || [])].filter(Boolean) as string[])
-      )
-    );
+    // Preload ALL backgrounds and overlay images from props (not only filtered sections)
+    const urls = Array.from(new Set([
+      // destination backgrounds
+      ...normalizedDestinations.map(d => d.background_url).filter((u): u is string => Boolean(u)),
+      // product backgrounds
+      ...normalizedDestinations.flatMap(d => (d.products || [{ ...d } as ProductType]).map(p => p.background_url)).filter((u): u is string => Boolean(u)),
+      // destination overlays
+      ...normalizedDestinations.flatMap(d => (d.overlays || []).map(o => o.overlay_url)).filter((u): u is string => Boolean(u)),
+      // product overlays
+      ...normalizedDestinations.flatMap(d => (d.products || [{ ...d } as ProductType]).flatMap(p => (p.overlays || []).map(o => o.overlay_url))).filter((u): u is string => Boolean(u))
+    ]));
     if (urls.length === 0) { setProgress(1); setReady(true); return; }
     let loaded = 0;
     const start = performance.now();
@@ -123,15 +229,45 @@ export default function PariwisataView({ pariwisata, setting }: Props) {
       if ('requestIdleCallback' in window) {
         requestIdleCallback(() => {
           urls.forEach(url => {
-            const link = document.createElement('link');
-            link.rel = 'prefetch';
-            link.href = url;
-            document.head.appendChild(link);
+            // Preload for high priority display
+            const preload = document.createElement('link');
+            preload.rel = 'preload';
+            (preload as any).as = 'image';
+            preload.href = url;
+            document.head.appendChild(preload);
+            // Prefetch for subsequent navigations
+            const prefetch = document.createElement('link');
+            prefetch.rel = 'prefetch';
+            prefetch.href = url;
+            document.head.appendChild(prefetch);
           });
         });
       }
     });
   }, []);
+
+  // Deep-linking: support open=<slug>&product=<index>
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const targetSlug = params.get('open');
+      const prodIdxRaw = params.get('product');
+      if (targetSlug) {
+        const destIndex = normalizedDestinations.findIndex(d => d.slug === targetSlug);
+        if (destIndex >= 0) {
+          // apply product index if present
+          if (prodIdxRaw) {
+            const pi = Math.max(0, Math.min(Number(prodIdxRaw) || 0, (normalizedDestinations[destIndex].products?.length || 1) - 1));
+            setProductForSlug(targetSlug, pi);
+          }
+          if (ready) {
+            const id = setTimeout(() => scrollToIndex(destIndex, { overshoot: false }), 50);
+            return () => clearTimeout(id);
+          }
+        }
+      }
+    } catch {}
+  }, [ready, normalizedDestinations]);
 
   // Konfigurasi kecepatan animasi (mudah diubah)
   const SCROLL_CONF = {
@@ -149,6 +285,8 @@ export default function PariwisataView({ pariwisata, setting }: Props) {
   const [active, setActive] = useState(0);
   const scrollAnimRef = useRef<AnimationPlaybackControls | null>(null);
   const isAnimatingRef = useRef(false);
+  const isStabilizingRef = useRef(false);
+  const lastSlugRef = useRef<string | null>(null);
 
   // Carousel-specific state
   const carouselRef = useRef<HTMLDivElement | null>(null);
@@ -164,6 +302,8 @@ export default function PariwisataView({ pariwisata, setting }: Props) {
       (entries) => {
         entries.forEach((e) => {
           if (e.isIntersecting) {
+            // Don't update active state during stabilization to prevent race condition
+            if (isStabilizingRef.current) return;
             const idx = els.findIndex((el) => el === e.target);
             if (idx !== -1) setActive(idx);
           }
@@ -173,9 +313,66 @@ export default function PariwisataView({ pariwisata, setting }: Props) {
     );
     els.forEach((el) => obs.observe(el));
     return () => obs.disconnect();
-  }, [ready, isRowLayout]);
+  }, [ready, isRowLayout, SECTIONS.length]);
 
-  const scrollToIndex = (idx: number, opts?: { overshoot?: boolean }) => {
+  // Track last visible slug for stabilization across filter/sort changes
+  useEffect(() => {
+    lastSlugRef.current = SECTIONS[active]?.id || null;
+  }, [active, SECTIONS]);
+
+  // When personalization filters/sorting change, keep the same section in view if possible
+  useEffect(() => {
+    if (!ready) return;
+    const slug = lastSlugRef.current;
+    if (!slug) return;
+    
+    // Trim stale refs immediately to match new SECTIONS
+    sectionRefs.current.length = SECTIONS.length;
+    
+    // Find new index for the last visible slug
+    const idx = SECTIONS.findIndex(s => s.id === slug);
+    const targetIdx = idx >= 0 ? idx : 0;
+    
+    // Defer to next frame so DOM updates
+    const id = requestAnimationFrame(() => {
+      // If we're in carousel mode, update currentSlide directly without scroll
+      if (isRowLayout) {
+        isStabilizingRef.current = true;
+        setCurrentSlide(targetIdx);
+        setActive(targetIdx);
+        setTimeout(() => { isStabilizingRef.current = false; }, 80);
+        return;
+      }
+
+      // Column layout: temporarily disable snap and scroll without animation
+      const container = containerRef.current;
+      const targetEl = sectionRefs.current[targetIdx];
+      if (!container || !targetEl) {
+        // Fallback: just update active state
+        setActive(targetIdx);
+        return;
+      }
+      
+      isStabilizingRef.current = true;
+      const prevSnap = container.style.scrollSnapType;
+      container.style.scrollSnapType = 'none';
+      
+      // Instant scroll to prevent NavDots from jumping
+      container.scrollTop = targetEl.offsetTop;
+      setActive(targetIdx);
+
+      // Restore snap after a longer delay to ensure IntersectionObserver doesn't override
+      setTimeout(() => {
+        if (container) container.style.scrollSnapType = prevSnap || '';
+        isStabilizingRef.current = false;
+      }, 250);
+    });
+    return () => cancelAnimationFrame(id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefLabels, labelCounts]);
+
+  const scrollToIndex = (idx: number, opts?: { overshoot?: boolean; behavior?: ScrollBehavior }) => {
+    if (isStabilizingRef.current && opts?.behavior !== 'auto') return; // ignore user nav while stabilizing
     if (isRowLayout) {
       // Carousel navigation
       const carousel = carouselRef.current;
@@ -190,67 +387,14 @@ export default function PariwisataView({ pariwisata, setting }: Props) {
       return;
     }
     
-    // Original column layout logic
-    const container = containerRef.current;
+    // Original column layout logic (simplified for smooth and light scrolling)
+  const container = containerRef.current;
     const targetEl = sectionRefs.current[idx];
     if (!container || !targetEl) return;
-    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (prefersReduced) { targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
-    const start = container.scrollTop;
-    const target = targetEl.offsetTop;
-    if (Math.abs(target - start) < 2) return;
-    const maxScroll = container.scrollHeight - container.clientHeight;
-    const direction = target > start ? 1 : -1;
-    const distance = Math.abs(target - start);
-    const isTouchLike = window.matchMedia('(pointer:coarse)').matches;
-    // Matikan overshoot di perangkat sentuh agar tidak terasa "melenting" aneh
-    const enableOvershoot = opts?.overshoot !== false && !isTouchLike; // default true kecuali touch
-    // Overshoot proporsional; jika disable overshoot (flick cepat), langsung ke target
-    let overshoot = target;
-    if (enableOvershoot) {
-      const dynamic = Math.min(
-        Math.max(distance * SCROLL_CONF.overshootRatio, SCROLL_CONF.overshootMin),
-        SCROLL_CONF.overshootMax
-      );
-      overshoot = target + direction * dynamic;
-    }
-    if (overshoot < 0) overshoot = 0;
-    if (overshoot > maxScroll) overshoot = maxScroll;
-    scrollAnimRef.current?.stop();
-    isAnimatingRef.current = true;
-    // Matikan snap sementara supaya overshoot tidak dipotong browser
-    const prevSnap = container.style.scrollSnapType;
-    container.style.scrollSnapType = 'none';
-    const goPhase2 = () => {
-      scrollAnimRef.current = animate(overshoot, target, {
-        type: 'spring',
-        stiffness: enableOvershoot ? SCROLL_CONF.springStiffness : SCROLL_CONF.springStiffness + 40,
-        damping: enableOvershoot ? SCROLL_CONF.springDamping : SCROLL_CONF.springDamping + 6,
-        mass: 1,
-        restDelta: 0.4,
-        onUpdate: (v: number) => { container.scrollTop = v; },
-        onComplete: () => { isAnimatingRef.current = false; container.style.scrollSnapType = prevSnap || ''; },
-        onStop: () => { isAnimatingRef.current = false; container.style.scrollSnapType = prevSnap || ''; }
-      });
-    };
-    if (overshoot !== target) {
-      const phase1 = animate(start, overshoot, {
-        duration: SCROLL_CONF.phase1Duration,
-        ease: [0.3, 0.95, 0.55, 0.98],
-        onUpdate: (v: number) => { container.scrollTop = v; }
-      });
-      phase1.finished.then(goPhase2).catch(() => { isAnimatingRef.current = false; container.style.scrollSnapType = prevSnap || ''; });
-    } else {
-      // langsung target (tanpa overshoot)
-      const direct = animate(start, target, {
-        duration: SCROLL_CONF.directDuration,
-        ease: [0.25, 0.85, 0.35, 1],
-        onUpdate: (v: number) => { container.scrollTop = v; },
-        onComplete: () => { isAnimatingRef.current = false; container.style.scrollSnapType = prevSnap || ''; },
-        onStop: () => { isAnimatingRef.current = false; container.style.scrollSnapType = prevSnap || ''; }
-      });
-      direct.finished.catch(() => { isAnimatingRef.current = false; container.style.scrollSnapType = prevSnap || ''; });
-    }
+    // Prefer native smooth scroll for best performance across devices
+    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches || reducedMotion;
+    const behavior: ScrollBehavior = opts?.behavior || (prefersReduced ? 'smooth' : 'smooth');
+    container.scrollTo({ top: targetEl.offsetTop, behavior });
   };
 
   // Event listeners for both layouts
@@ -337,7 +481,18 @@ export default function PariwisataView({ pariwisata, setting }: Props) {
     if (!el) return;
     const lastRef = { current: 0 };
     const cooldown = 420;
+    const nearestIndex = () => {
+      const container = containerRef.current; if (!container) return active;
+      const st = container.scrollTop; const ch = container.clientHeight;
+      let best = 0; let bestDist = Number.POSITIVE_INFINITY;
+      sectionRefs.current.forEach((sec, i) => {
+        if (!sec) return; const mid = sec.offsetTop + sec.offsetHeight / 2;
+        const dist = Math.abs((st + ch / 2) - mid); if (dist < bestDist) { bestDist = dist; best = i; }
+      });
+      return best;
+    };
     const onWheel = (e: WheelEvent) => {
+      if (isStabilizingRef.current) { e.preventDefault(); return; }
       if (isAnimatingRef.current) { e.preventDefault(); return; }
       if (Math.abs(e.deltaY) < Math.abs(e.deltaX)) return;
       const now = performance.now();
@@ -345,7 +500,8 @@ export default function PariwisataView({ pariwisata, setting }: Props) {
       if (Math.abs(e.deltaY) < 40) return;
       e.preventDefault();
       lastRef.current = now;
-      let next = active + (e.deltaY > 0 ? 1 : -1);
+      const current = nearestIndex();
+      let next = current + (e.deltaY > 0 ? 1 : -1);
       if (next < 0) next = 0; else if (next >= SECTIONS.length) next = SECTIONS.length - 1;
       if (next !== active) scrollToIndex(next);
     };
@@ -394,6 +550,20 @@ export default function PariwisataView({ pariwisata, setting }: Props) {
 
   return (
     <>
+      {/* Onboarding dialog (first visit or when reopened) */}
+      <OnboardingDialog
+        open={onboardingOpen}
+        onOpenChange={(v) => {
+          setOnboardingOpen(v);
+        }}
+        labels={allLabels}
+        initialPrefLabels={prefLabels}
+        initialMotion={reducedMotion ? 'reduced' : 'high'}
+        onSave={({ prefLabels: pl, motion }) => {
+          setPrefLabels(pl);
+          setReducedMotion(motion === 'reduced');
+        }}
+      />
       <Head title="Destinasi Pariwisata" />
       {isRowLayout ? (
         // Carousel Layout
@@ -402,12 +572,28 @@ export default function PariwisataView({ pariwisata, setting }: Props) {
             active={currentSlide} 
             onJump={scrollToIndex} 
             sections={SECTIONS} 
-            brand="J-PiMS" 
+            brand="J-PiMS"
+            actions={(
+              <div className="flex items-center gap-2">
+                {/* Re-open onboarding */}
+                <button
+                  onClick={() => {
+                    setOnboardingOpen(true);
+                  }}
+                  className="px-3 h-9 rounded-md border border-white/15 bg-white/5 hover:bg-white/15 text-white/80 hover:text-white text-xs font-medium transition"
+                >
+                  Personalisasi
+                </button>
+                {/* Personalized ordering only; filter UI removed intentionally */}
+                {/* Removed 'Lanjutkan' quick link per request */}
+              </div>
+            )}
           />
           <NavDots 
             count={SECTIONS.length} 
             active={currentSlide} 
-            onJump={scrollToIndex} 
+            onJump={scrollToIndex}
+            sections={SECTIONS}
           />
           <div
             ref={carouselRef}
@@ -424,6 +610,7 @@ export default function PariwisataView({ pariwisata, setting }: Props) {
                   data={s}
                   index={i}
                   isActive={i === currentSlide}
+                  onCtaClick={recordClick}
                 />
               </div>
             ))}
@@ -441,15 +628,36 @@ export default function PariwisataView({ pariwisata, setting }: Props) {
           ref={containerRef}
           data-scroll-root="true"
           className="h-screen w-screen overflow-y-scroll snap-y snap-mandatory scrollbar-none relative bg-black"
+          style={{ scrollPaddingTop: '56px' }}
         >
-          <Header active={active} onJump={scrollToIndex} sections={SECTIONS} brand="J-PiMS" />
-          <NavDots count={SECTIONS.length} active={active} onJump={scrollToIndex} />
+          <Header 
+            active={active} 
+            onJump={scrollToIndex} 
+            sections={SECTIONS} 
+            brand="J-PiMS"
+            actions={(
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    setOnboardingOpen(true);
+                  }}
+                  className="px-3 h-9 rounded-md border border-white/15 bg-white/5 hover:bg-white/15 text-white/80 hover:text-white text-xs font-medium transition"
+                >
+                  Personalisasi
+                </button>
+                {/* Personalized ordering only; filter UI removed intentionally */}
+                {/* Removed 'Lanjutkan' quick link per request */}
+              </div>
+            )}
+          />
+          <NavDots count={SECTIONS.length} active={active} onJump={scrollToIndex} sections={SECTIONS} />
           {SECTIONS.map((s, i) => (
             <Section
               key={s.id}
               ref={(el: HTMLDivElement | null) => { sectionRefs.current[i] = el; }}
               data={s}
               index={i}
+              onCtaClick={recordClick}
             />
           ))}
           <ScrollProgress targetRef={containerRef} />
@@ -490,8 +698,11 @@ if (typeof document !== "undefined" && !document.getElementById(styleId)) {
 }
 
 /* Smooth scroll performance */
+/* Let JS/native smooth scrolling control the behavior (no override here) */
+
+/* Contain momentum to avoid bouncing back to previous snap */
 .snap-y {
-  scroll-behavior: auto !important;
+  overscroll-behavior-y: contain;
 }
 
 /* Prevent layout shifts during image transitions */

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\PariwisataController;
+use App\Http\Controllers\Admin\PariwisataProductController;
 use App\Http\Controllers\Admin\SettingController;
 use App\Http\Controllers\Admin\TahunAkademikController;
 use App\Http\Controllers\Admin\UserController;
@@ -15,6 +16,10 @@ use Illuminate\Support\Facades\Route;
 
 // Frontend Routes (Public)
 Route::get('/', [FrontendController::class, 'index'])->name('home');
+Route::get('/destinasi/{slug}/produk', [FrontendController::class, 'products'])->name('frontend.destination.products');
+Route::get('/destinasi/{slug}/produk/{product}', [FrontendController::class, 'product'])->name('frontend.product.view');
+// SEO friendly product page by destination slug
+Route::get('/{slug}/product', [FrontendController::class, 'productBySlug'])->name('frontend.product.by-slug');
 // Route::get('/view/{slug}', [FrontendController::class, 'show'])->name('frontend.show');
 
 // Admin Routes
@@ -61,6 +66,25 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('overlays/{overlay}', [PariwisataController::class, 'updateOverlay'])->name('pariwisata.overlays.update');
         Route::post('overlays/{overlay}/delete', [PariwisataController::class, 'deleteOverlay'])->name('pariwisata.overlays.delete');
     });
+
+    // Products (Admin)
+    Route::prefix('products')->group(function () {
+        Route::get('/', [PariwisataProductController::class, 'index'])->name('product.index');
+        Route::get('create', [PariwisataProductController::class, 'create'])->name('product.create');
+        Route::post('store', [PariwisataProductController::class, 'store'])->name('product.store');
+        Route::get('edit/{product}', [PariwisataProductController::class, 'edit'])->name('product.edit');
+        Route::post('update/{product}', [PariwisataProductController::class, 'update'])->name('product.update');
+        Route::post('delete/{product}', [PariwisataProductController::class, 'destroy'])->name('product.destroy');
+        Route::post('delete-multiple', [PariwisataProductController::class, 'deleteMultiple'])->name('product.delete-multiple');
+        Route::post('upload-background', [PariwisataProductController::class, 'uploadBackground'])->name('product.upload-background');
+        // Overlays for products
+        Route::post('{product}/overlays', [PariwisataProductController::class, 'storeOverlay'])->name('product.overlays.store');
+        Route::post('overlays/{overlay}', [PariwisataProductController::class, 'updateOverlay'])->name('product.overlays.update');
+        Route::post('overlays/{overlay}/delete', [PariwisataProductController::class, 'deleteOverlay'])->name('product.overlays.delete');
+    });
+
+    // Access from pariwisata action: /pariwisata/{pariwisata}/product
+    Route::get('pariwisata/{pariwisata}/product', [PariwisataProductController::class, 'indexByPariwisata'])->name('product.by-pariwisata');
 
     Route::prefix('settings')->group(function () {
         Route::post('update', [SettingController::class, 'update'])->name('settings.update');

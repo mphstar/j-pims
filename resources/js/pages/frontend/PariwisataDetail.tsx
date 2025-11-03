@@ -17,6 +17,8 @@ interface OverlayType {
   position_horizontal: 'left' | 'center' | 'right' | null;
   position_vertical: 'top' | 'center' | 'bottom' | null;
   object_fit: 'contain' | 'cover' | 'fill' | 'none' | 'scale-down' | 'crop' | null;
+  width?: number | null;
+  height?: number | null;
 }
 
 interface PariwisataType {
@@ -54,7 +56,9 @@ function convertToSectionData(pariwisataData: PariwisataType[]): SectionData[] {
     url: overlay.overlay_url,
     position_horizontal: overlay.position_horizontal,
     position_vertical: overlay.position_vertical,
-    object_fit: overlay.object_fit
+    object_fit: overlay.object_fit,
+    width: overlay.width,
+    height: overlay.height
   })) || [],
     content: (
       <div className="max-w-xl space-y-4">

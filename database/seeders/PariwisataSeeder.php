@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\Pariwisata;
 use App\Models\PariwisataOverlays;
+use App\Models\PariwisataProduct;
 use Illuminate\Database\Seeder;
 
 class PariwisataSeeder extends Seeder
@@ -130,9 +131,11 @@ class PariwisataSeeder extends Seeder
         foreach ($pariwisataData as $data) {
             $overlays = $data['overlays'];
             unset($data['overlays']);
-            
+
+            // 1) Create destination (pariwisata)
             $pariwisata = Pariwisata::create($data);
-            
+
+            // Destination-level overlays (no product_id)
             foreach ($overlays as $overlay) {
                 PariwisataOverlays::create([
                     'pariwisata_id' => $pariwisata->id,
@@ -140,6 +143,56 @@ class PariwisataSeeder extends Seeder
                     'position_horizontal' => $overlay['position_horizontal'],
                     'position_vertical' => $overlay['position_vertical'],
                     'object_fit' => $overlay['object_fit']
+                ]);
+            }
+
+            // 2) Create two sample products per destination
+            $productsSpec = [
+                [
+                    'suffix' => 'paket-a',
+                    'titleSuffix' => ' — Paket A',
+                    'bg' => 'https://picsum.photos/seed/'.md5($pariwisata->slug.'-a').'/1920/1080',
+                    'cta' => 'Lihat Paket A',
+                ],
+                [
+                    'suffix' => 'paket-b',
+                    'titleSuffix' => ' — Paket B',
+                    'bg' => 'https://picsum.photos/seed/'.md5($pariwisata->slug.'-b').'/1920/1080',
+                    'cta' => 'Lihat Paket B',
+                ],
+            ];
+
+            foreach ($productsSpec as $i => $spec) {
+                $product = PariwisataProduct::create([
+                    'pariwisata_id' => $pariwisata->id,
+                    'title' => $pariwisata->title.$spec['titleSuffix'],
+                    'label' => $pariwisata->label,
+                    'subtitle' => $pariwisata->subtitle,
+                    'slug' => $pariwisata->slug.'-'.$spec['suffix'],
+                    'content' => $pariwisata->content,
+                    'background_url' => $spec['bg'],
+                    'cta_href' => $pariwisata->cta_href,
+                    'cta_label' => $spec['cta'],
+                    'align' => $pariwisata->align,
+                ]);
+
+                // Product-level overlays
+                $base = $i + 1;
+                PariwisataOverlays::create([
+                    'pariwisata_id' => $pariwisata->id,
+                    'product_id' => $product->id,
+                    'overlay_url' => 'https://picsum.photos/seed/'.md5($product->slug.'-ov1').'/300/200',
+                    'position_horizontal' => $i % 2 === 0 ? 'right' : 'left',
+                    'position_vertical' => 'top',
+                    'object_fit' => 'cover',
+                ]);
+                PariwisataOverlays::create([
+                    'pariwisata_id' => $pariwisata->id,
+                    'product_id' => $product->id,
+                    'overlay_url' => 'https://picsum.photos/seed/'.md5($product->slug.'-ov2').'/250/300',
+                    'position_horizontal' => $i % 2 === 0 ? 'right' : 'center',
+                    'position_vertical' => 'bottom',
+                    'object_fit' => 'cover',
                 ]);
             }
         }
