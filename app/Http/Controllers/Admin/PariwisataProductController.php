@@ -98,12 +98,13 @@ class PariwisataProductController extends Controller
 
     public function edit(PariwisataProduct $product)
     {
-        $product->load('overlays','pariwisata:id,title');
+        $product->load(['overlays', 'pariwisata:id,title', 'metadata']);
         $destinations = Pariwisata::select('id','title','slug')->orderBy('title')->get();
         return Inertia::render('product/edit', [
             'item' => $product,
             'destinations' => $destinations,
             'overlays' => $product->overlays,
+            'metadata' => $product->metadata,
         ]);
     }
 
@@ -232,5 +233,32 @@ class PariwisataProductController extends Controller
         $this->deleteFileIfExists($overlay->overlay_url);
         $overlay->delete();
         return redirect()->route('product.edit', $pid)->with('success', 'Overlay deleted');
+    }
+
+    // Metadata CRUD
+    public function storeMetadata(Request $request, PariwisataProduct $product)
+    {
+        $validated = $request->validate([
+            'activity_level' => 'nullable|in:easy,moderate,challenging',
+            'price_range' => 'nullable|in:budget,moderate,expensive,luxury',
+            'best_season' => 'nullable|string|max:255',
+            'tags' => 'nullable|array',
+            'tags.*' => 'string|max:100',
+            'duration_hours' => 'nullable|numeric|min:0|max:999.99',
+            'target_age_group' => 'nullable|array',
+            'target_age_group.*' => 'string|max:50',
+            'includes' => 'nullable|array',
+            'includes.*' => 'string|max:100',
+            'requirements' => 'nullable|array',
+            'requirements.*' => 'string|max:100',
+            'group_size' => 'nullable|array',
+        ]);
+
+        $product->metadata()->updateOrCreate(
+            ['product_id' => $product->id],
+            $validated
+        );
+
+        return redirect()->route('product.edit', $product->id)->with('success', 'Metadata updated');
     }
 }

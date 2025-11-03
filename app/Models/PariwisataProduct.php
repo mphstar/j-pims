@@ -25,4 +25,9 @@ class PariwisataProduct extends Model
     {
         return $this->hasMany(PariwisataOverlays::class, 'product_id');
     }
+
+    public function metadata()
+    {
+        return $this->hasOne(PariwisataProductMetadata::class, 'product_id');
+    }
 }

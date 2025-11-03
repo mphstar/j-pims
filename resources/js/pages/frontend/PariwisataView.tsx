@@ -10,8 +10,25 @@ import { ArrowNav } from "@/components/molecules/ArrowNav";
 import { NavDots } from "@/components/molecules/NavDots";
 import { Header } from "@/components/templates/Header";
 import { OnboardingDialog } from "@/components/molecules/OnboardingDialog";
+import { calculatePersonalizationScore, getPersonalizationBadge, getPersonalizationDetails, isPersonalized } from "@/utils/personalization";
 
 // Database interfaces
+interface MetadataType {
+  activity_level?: string;
+  price_range?: string;
+  best_season?: string;
+  tags?: string[];
+  target_age_group?: string[];
+  facilities?: string[];
+  includes?: string[];
+  duration_hours?: number;
+  view_count?: number;
+  visit_count?: number;
+  accessibility?: string;
+  requirements?: string[];
+  group_size?: { min?: number; max?: number };
+}
+
 interface OverlayType {
   id: number;
   overlay_url: string;
@@ -34,6 +51,7 @@ interface PariwisataType {
   cta_label: string;
   align: 'left' | 'right';
   overlays: OverlayType[];
+  metadata?: MetadataType;
 }
 
 interface ProductType extends PariwisataType {}
@@ -46,10 +64,18 @@ interface SettingType {
   style: 'column' | 'row';
 }
 
+interface MetadataOptions {
+  activity_levels: string[];
+  price_ranges: string[];
+  best_seasons: string[];
+  tags: string[];
+}
+
 interface Props {
   pariwisata?: PariwisataType[];
   destinations?: DestinationType[];
   setting: SettingType;
+  metadataOptions?: MetadataOptions;
 }
 
 // Function to convert database data to SectionData format
@@ -57,7 +83,7 @@ interface Props {
 
 
 
-export default function PariwisataView({ pariwisata, destinations, setting }: Props) {
+export default function PariwisataView({ pariwisata, destinations, setting, metadataOptions }: Props) {
   // ===== Personalization State (localStorage backed) =====
   const safeStorage = typeof window !== 'undefined' ? window.localStorage : undefined;
   // Layout: fixed to column for snap scroll experience
@@ -85,6 +111,22 @@ export default function PariwisataView({ pariwisata, destinations, setting }: Pr
     try { return JSON.parse(safeStorage?.getItem('jp_pref_labels') || '[]') as string[]; } catch { return []; }
   });
   useEffect(() => { try { safeStorage?.setItem('jp_pref_labels', JSON.stringify(prefLabels)); } catch {} }, [prefLabels]);
+
+  // Metadata preferences for personalization
+  const [activityLevel, setActivityLevel] = useState<string>(() => {
+    try { return safeStorage?.getItem('jp_activity_level') || ''; } catch { return ''; }
+  });
+  useEffect(() => { try { if (activityLevel) safeStorage?.setItem('jp_activity_level', activityLevel); } catch {} }, [activityLevel]);
+
+  const [priceRange, setPriceRange] = useState<string>(() => {
+    try { return safeStorage?.getItem('jp_price_range') || ''; } catch { return ''; }
+  });
+  useEffect(() => { try { if (priceRange) safeStorage?.setItem('jp_price_range', priceRange); } catch {} }, [priceRange]);
+
+  const [bestSeason, setBestSeason] = useState<string>(() => {
+    try { return safeStorage?.getItem('jp_best_season') || ''; } catch { return ''; }
+  });
+  useEffect(() => { try { if (bestSeason) safeStorage?.setItem('jp_best_season', bestSeason); } catch {} }, [bestSeason]);
 
   const [reducedMotion, setReducedMotion] = useState<boolean>(() => {
     try { return (safeStorage?.getItem('jp_motion') || 'high') === 'reduced'; } catch { return false; }
@@ -124,6 +166,21 @@ export default function PariwisataView({ pariwisata, destinations, setting }: Pr
     const active = products[activeIdx];
     const overlays = (active.overlays && active.overlays.length > 0 ? active.overlays : dest.overlays) || [];
     const alignVal = (active.align || dest.align) as 'left' | 'right';
+    
+    // Calculate personalization score based on metadata
+    const metadata = active.metadata || dest.metadata;
+    const personalizationScore = calculatePersonalizationScore(metadata, {
+      activityLevel,
+      priceRange,
+      bestSeason,
+    });
+    const badge = getPersonalizationBadge(personalizationScore);
+    const detailBadges = getPersonalizationDetails(metadata, {
+      activityLevel,
+      priceRange,
+      bestSeason,
+    });
+    
     return {
       id: dest.slug || `section-${index}`,
       slug: dest.slug,
@@ -143,6 +200,33 @@ export default function PariwisataView({ pariwisata, destinations, setting }: Pr
       align: active.align || dest.align,
       content: (
         <div className={"max-w-xl space-y-4 " + (alignVal === 'right' ? 'ml-auto text-right' : '')}>
+          {/* Badge "Rekomendasi Untuk Anda" - Tampil paling atas untuk section pertama */}
+          {index === 0 && personalizationScore > 0 && (
+            <div className={"flex gap-2 flex-wrap " + (alignVal === 'right' ? 'justify-end' : '')}>
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium text-white bg-gradient-to-r from-blue-500 to-purple-500">
+                <span>✨</span>
+                Rekomendasi Untuk Anda
+              </span>
+            </div>
+          )}
+          
+          {/* Detail badges dan badge cocok/sangat cocok */}
+          {(badge || detailBadges.length > 0) && (
+            <div className={"flex gap-2 flex-wrap " + (alignVal === 'right' ? 'justify-end' : '')}>
+              {badge && (
+                <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium text-white ${badge.color}`}>
+                  <span>✨</span>
+                  {badge.label}
+                </span>
+              )}
+              {detailBadges.map((detail, idx) => (
+                <span key={idx} className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium text-white ${detail.color}`}>
+                  <span>{detail.icon}</span>
+                  {detail.label}
+                </span>
+              ))}
+            </div>
+          )}
           <p className="text-white/90">{active.content || dest.content}</p>
           {products.length > 1 && (
             <div className="pt-4">
@@ -165,10 +249,18 @@ export default function PariwisataView({ pariwisata, destinations, setting }: Pr
       ),
   ctaHref: dest.slug ? `/${dest.slug}/product` : (active.cta_href || dest.cta_href || '#'),
       ctaLabel: active.cta_label || dest.cta_label || 'Lihat',
-    } as SectionData;
+      personalizationScore, // Store score for sorting
+    } as SectionData & { personalizationScore: number };
   });
-  // Personalized ordering only (no filtering)
+  
+  // Personalized ordering: sort by personalization score + label preferences + click history
   const SECTIONS = [...baseSections].sort((a, b) => {
+    // Personalization score (metadata match) - highest priority
+    const scoreA = (a as any).personalizationScore || 0;
+    const scoreB = (b as any).personalizationScore || 0;
+    if (scoreA !== scoreB) return scoreB - scoreA;
+    
+    // Label preferences - second priority
     const wa = (a.label ? (labelCounts[a.label] || 0) : 0) + (a.label && prefLabels.includes(a.label) ? 100 : 0);
     const wb = (b.label ? (labelCounts[b.label] || 0) : 0) + (b.label && prefLabels.includes(b.label) ? 100 : 0);
     return wb - wa;
@@ -369,7 +461,7 @@ export default function PariwisataView({ pariwisata, destinations, setting }: Pr
     });
     return () => cancelAnimationFrame(id);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [prefLabels, labelCounts]);
+  }, [prefLabels, labelCounts, activityLevel, priceRange, bestSeason]);
 
   const scrollToIndex = (idx: number, opts?: { overshoot?: boolean; behavior?: ScrollBehavior }) => {
     if (isStabilizingRef.current && opts?.behavior !== 'auto') return; // ignore user nav while stabilizing
@@ -559,9 +651,13 @@ export default function PariwisataView({ pariwisata, destinations, setting }: Pr
         labels={allLabels}
         initialPrefLabels={prefLabels}
         initialMotion={reducedMotion ? 'reduced' : 'high'}
-        onSave={({ prefLabels: pl, motion }) => {
+        metadataOptions={metadataOptions}
+        onSave={({ prefLabels: pl, motion, activityLevel: al, priceRange: pr, bestSeason: bs }) => {
           setPrefLabels(pl);
           setReducedMotion(motion === 'reduced');
+          if (al) setActivityLevel(al);
+          if (pr) setPriceRange(pr);
+          if (bs) setBestSeason(bs);
         }}
       />
       <Head title="Destinasi Pariwisata" />
@@ -595,6 +691,7 @@ export default function PariwisataView({ pariwisata, destinations, setting }: Pr
             onJump={scrollToIndex}
             sections={SECTIONS}
           />
+          
           <div
             ref={carouselRef}
             className="flex h-full w-full carousel-container"
@@ -651,6 +748,7 @@ export default function PariwisataView({ pariwisata, destinations, setting }: Pr
             )}
           />
           <NavDots count={SECTIONS.length} active={active} onJump={scrollToIndex} sections={SECTIONS} />
+          
           {SECTIONS.map((s, i) => (
             <Section
               key={s.id}

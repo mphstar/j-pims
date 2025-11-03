@@ -11,7 +11,7 @@ class PariwisataApiController extends Controller
 {
     public function index()
     {
-        $pariwisata = Pariwisata::with('overlays')->get();
+        $pariwisata = Pariwisata::with(['overlays', 'metadata'])->get();
         $setting = Setting::first();
         
         return response()->json([
@@ -23,7 +23,7 @@ class PariwisataApiController extends Controller
 
     public function show($slug)
     {
-        $pariwisata = Pariwisata::with('overlays')->where('slug', $slug)->firstOrFail();
+        $pariwisata = Pariwisata::with(['overlays', 'metadata'])->where('slug', $slug)->firstOrFail();
         
         return response()->json([
             'success' => true,

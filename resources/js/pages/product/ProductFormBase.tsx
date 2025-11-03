@@ -20,12 +20,26 @@ interface OverlayType {
   __dirty?: boolean;
 }
 
+interface MetadataType {
+  id?: number;
+  activity_level?: 'easy' | 'moderate' | 'challenging' | null;
+  price_range?: 'budget' | 'moderate' | 'expensive' | 'luxury' | null;
+  best_season?: string | null;
+  tags?: string[] | null;
+  duration_hours?: number | null;
+  target_age_group?: string[] | null;
+  includes?: string[] | null;
+  requirements?: string[] | null;
+  group_size?: { min?: number; max?: number } | null;
+}
+
 interface Props {
   item?: any | null;
   mode: 'create' | 'edit';
   overlays?: OverlayType[];
   destinations: Array<{ id: number; title: string; slug: string }>
   selectedPariwisataId?: number | null;
+  metadata?: MetadataType | null;
 }
 
 const defaultValues = {
@@ -41,13 +55,31 @@ const defaultValues = {
   align: 'left' as 'left' | 'right'
 };
 
-export default function ProductFormBase({ item, mode, overlays = [], destinations, selectedPariwisataId }: Props) {
+export default function ProductFormBase({ item, mode, overlays = [], destinations, selectedPariwisataId, metadata = null }: Props) {
   const editing = mode === 'edit' && !!item;
   const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
 
   const { data, setData, processing, errors, clearErrors } = useForm<{ [K in keyof typeof defaultValues]: (typeof defaultValues)[K] } & { background_image?: File | null }>({ ...defaultValues, background_image: null });
   const [bgPreview, setBgPreview] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
+  
+  // Metadata state
+  const [metadataData, setMetadataData] = useState<MetadataType>({
+    activity_level: metadata?.activity_level || null,
+    price_range: metadata?.price_range || null,
+    best_season: metadata?.best_season || null,
+    tags: metadata?.tags || [],
+    duration_hours: metadata?.duration_hours || null,
+    target_age_group: metadata?.target_age_group || [],
+    includes: metadata?.includes || [],
+    requirements: metadata?.requirements || [],
+    group_size: metadata?.group_size || { min: undefined, max: undefined },
+  });
+  const [savingMetadata, setSavingMetadata] = useState(false);
+  const [tagsInput, setTagsInput] = useState('');
+  const [ageGroupInput, setAgeGroupInput] = useState('');
+  const [includesInput, setIncludesInput] = useState('');
+  const [requirementsInput, setRequirementsInput] = useState('');
   const [previewOpen, setPreviewOpen] = useState(false);
   const [overlayList, setOverlayList] = useState<OverlayType[]>(overlays.map(o => ({ ...o, __dirty: false })));
   const [activeOverlayId, setActiveOverlayId] = useState<number | null>(null);
@@ -104,6 +136,95 @@ export default function ProductFormBase({ item, mode, overlays = [], destination
     });
   };
 
+  const saveMetadata = () => {
+    if (!editing || !item?.id) {
+      toast.error('Simpan product dulu sebelum menambahkan metadata');
+      return;
+    }
+    
+    setSavingMetadata(true);
+    router.post(route('product.metadata.store', item.id), metadataData as any, {
+      preserveScroll: true,
+      onSuccess: () => {
+        toast.success('Metadata tersimpan');
+      },
+      onError: () => {
+        toast.error('Gagal menyimpan metadata');
+      },
+      onFinish: () => {
+        setSavingMetadata(false);
+      }
+    });
+  };
+
+  const addTag = () => {
+    if (tagsInput.trim()) {
+      setMetadataData(prev => ({
+        ...prev,
+        tags: [...(prev.tags || []), tagsInput.trim()]
+      }));
+      setTagsInput('');
+    }
+  };
+
+  const removeTag = (index: number) => {
+    setMetadataData(prev => ({
+      ...prev,
+      tags: (prev.tags || []).filter((_, i) => i !== index)
+    }));
+  };
+
+  const addAgeGroup = () => {
+    if (ageGroupInput.trim()) {
+      setMetadataData(prev => ({
+        ...prev,
+        target_age_group: [...(prev.target_age_group || []), ageGroupInput.trim()]
+      }));
+      setAgeGroupInput('');
+    }
+  };
+
+  const removeAgeGroup = (index: number) => {
+    setMetadataData(prev => ({
+      ...prev,
+      target_age_group: (prev.target_age_group || []).filter((_, i) => i !== index)
+    }));
+  };
+
+  const addInclude = () => {
+    if (includesInput.trim()) {
+      setMetadataData(prev => ({
+        ...prev,
+        includes: [...(prev.includes || []), includesInput.trim()]
+      }));
+      setIncludesInput('');
+    }
+  };
+
+  const removeInclude = (index: number) => {
+    setMetadataData(prev => ({
+      ...prev,
+      includes: (prev.includes || []).filter((_, i) => i !== index)
+    }));
+  };
+
+  const addRequirement = () => {
+    if (requirementsInput.trim()) {
+      setMetadataData(prev => ({
+        ...prev,
+        requirements: [...(prev.requirements || []), requirementsInput.trim()]
+      }));
+      setRequirementsInput('');
+    }
+  };
+
+  const removeRequirement = (index: number) => {
+    setMetadataData(prev => ({
+      ...prev,
+      requirements: (prev.requirements || []).filter((_, i) => i !== index)
+    }));
+  };
+
   const uploadOverlay = (file: File) => {
     if (!item?.id) { toast.error('Simpan dahulu sebelum menambah overlay'); return; }
     if (file.size > 2 * 1024 * 1024) { toast.error('Ukuran maksimal 2MB'); return; }
@@ -150,20 +271,29 @@ export default function ProductFormBase({ item, mode, overlays = [], destination
   };
 
   const preview = useMemo(() => (
-    <div className={cn('relative w-full h-screen flex flex-col justify-center px-10 snap-start overflow-hidden transition-colors', data.align === 'left' ? 'items-start text-left' : 'items-end text-right')} style={{ backgroundImage: (bgPreview || data.background_url) ? `url(${bgPreview || data.background_url})` : undefined, backgroundSize: 'cover', backgroundPosition: 'center' }}>
-      <div className='max-w-xl p-6 rounded-md text-white space-y-3'>
-        {data.label && <span className='text-xs uppercase tracking-wider bg-white/20 px-2 py-1 rounded'>{data.label}</span>}
-        <h1 className='text-7xl font-extrabold leading-none'>{data.title || 'Judul Belum Diisi'}</h1>
-        {data.subtitle && <h2 className='text-lg opacity-80'>{data.subtitle}</h2>}
-        {data.content && <p className='text-sm leading-relaxed whitespace-pre-line'>{data.content}</p>}
-        {(data.cta_label || data.cta_href) && (
-          <a href={data.cta_href || '#'} className='inline-block bg-transparent border-[2px] mt-3 border-white px-4 py-2 rounded shadow hover:opacity-90 transition'>
-            {data.cta_label || 'Lanjut'}
-          </a>
+    <div className='relative w-full h-screen snap-start flex items-center justify-center overflow-hidden bg-muted'>
+      <div className={cn('relative w-full h-full flex flex-col justify-center px-10 overflow-hidden transition-colors', data.align === 'left' ? 'items-start text-left' : 'items-end text-right')} style={{ backgroundImage: (bgPreview || data.background_url) ? `url(${bgPreview || data.background_url})` : undefined, backgroundSize: 'cover', backgroundPosition: 'center' }}>
+        <div className='max-w-xl p-6 rounded-md text-white space-y-3 z-10 relative'>
+          {data.label && <span className='text-xs uppercase tracking-wider bg-white/20 px-2 py-1 rounded'>{data.label}</span>}
+          <h1 className='text-7xl font-extrabold leading-none'>{data.title || 'Judul Belum Diisi'}</h1>
+          {data.subtitle && <h2 className='text-lg opacity-80'>{data.subtitle}</h2>}
+          {data.content && <p className='text-sm leading-relaxed whitespace-pre-line'>{data.content}</p>}
+          {(data.cta_label || data.cta_href) && (
+            <a href={data.cta_href || '#'} className='inline-block bg-transparent border-[2px] mt-3 border-white px-4 py-2 rounded shadow hover:opacity-90 transition'>
+              {data.cta_label || 'Lanjut'}
+            </a>
+          )}
+        </div>
+        {editing && (
+          <div className='pointer-events-none absolute inset-0'>
+            {overlayList.map(o => (
+              <OverlayAligned key={o.id} overlay={o} />
+            ))}
+          </div>
         )}
       </div>
     </div>
-  ), [data, bgPreview]);
+  ), [data, bgPreview, overlayList, editing]);
 
   return (
     <div className='flex h-full w-full flex-col'>
@@ -236,6 +366,199 @@ export default function ProductFormBase({ item, mode, overlays = [], destination
               <option value='left'>Left</option>
               <option value='right'>Right</option>
             </select>
+          </div>
+
+          <div className='space-y-4 pt-4 border-t'>
+            <div className='flex items-center justify-between'>
+              <h3 className='text-sm font-semibold'>Metadata Personalisasi</h3>
+              {editing && (
+                <Button type='button' size='sm' onClick={saveMetadata} disabled={savingMetadata}>
+                  {savingMetadata ? 'Menyimpan...' : 'Simpan Metadata'}
+                </Button>
+              )}
+            </div>
+            {!editing && (
+              <p className='text-xs text-muted-foreground'>Simpan product dulu untuk bisa menyimpan metadata</p>
+            )}
+            
+            <div className='space-y-2'>
+              <Label className='text-sm font-medium'>Activity Level</Label>
+              <Select value={metadataData.activity_level || 'unset'} onValueChange={(val) => setMetadataData(prev => ({ ...prev, activity_level: val === 'unset' ? null : val as any }))}>
+                <SelectTrigger className='h-9'>
+                  <SelectValue placeholder='Pilih tingkat aktivitas' />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value='unset'>-- Tidak diset --</SelectItem>
+                  <SelectItem value='easy'>Easy (Santai)</SelectItem>
+                  <SelectItem value='moderate'>Moderate (Sedang)</SelectItem>
+                  <SelectItem value='challenging'>Challenging (Menantang)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className='space-y-2'>
+              <Label className='text-sm font-medium'>Price Range</Label>
+              <Select value={metadataData.price_range || 'unset'} onValueChange={(val) => setMetadataData(prev => ({ ...prev, price_range: val === 'unset' ? null : val as any }))}>
+                <SelectTrigger className='h-9'>
+                  <SelectValue placeholder='Pilih rentang harga' />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value='unset'>-- Tidak diset --</SelectItem>
+                  <SelectItem value='budget'>Budget (Hemat)</SelectItem>
+                  <SelectItem value='moderate'>Moderate (Menengah)</SelectItem>
+                  <SelectItem value='expensive'>Expensive (Mahal)</SelectItem>
+                  <SelectItem value='luxury'>Luxury (Mewah)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className='space-y-2'>
+              <Label className='text-sm font-medium'>Best Season</Label>
+              <Input 
+                value={metadataData.best_season || ''} 
+                onChange={e => setMetadataData(prev => ({ ...prev, best_season: e.target.value || null }))}
+                placeholder='e.g., Mei-Oktober, Musim Kemarau'
+              />
+              <p className='text-xs text-muted-foreground'>Waktu terbaik berkunjung</p>
+            </div>
+
+            <div className='space-y-2'>
+              <Label className='text-sm font-medium'>Duration (Jam)</Label>
+              <Input 
+                type='number' 
+                step='0.5'
+                value={metadataData.duration_hours || ''} 
+                onChange={e => setMetadataData(prev => ({ ...prev, duration_hours: e.target.value ? parseFloat(e.target.value) : null }))}
+                placeholder='e.g., 2.5'
+              />
+              <p className='text-xs text-muted-foreground'>Durasi ideal kunjungan dalam jam</p>
+            </div>
+
+            <div className='space-y-2'>
+              <Label className='text-sm font-medium'>Tags</Label>
+              <div className='flex gap-2'>
+                <Input 
+                  value={tagsInput} 
+                  onChange={e => setTagsInput(e.target.value)}
+                  onKeyPress={e => e.key === 'Enter' && (e.preventDefault(), addTag())}
+                  placeholder='Tambah tag (Enter)'
+                />
+                <Button type='button' size='sm' onClick={addTag}>+</Button>
+              </div>
+              <div className='flex flex-wrap gap-1'>
+                {(metadataData.tags || []).map((tag, i) => (
+                  <span key={i} className='inline-flex items-center gap-1 px-2 py-0.5 bg-primary/10 rounded text-xs'>
+                    {tag}
+                    <button type='button' onClick={() => removeTag(i)} className='text-red-500 hover:text-red-700'>×</button>
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <div className='space-y-2'>
+              <Label className='text-sm font-medium'>Target Age Group</Label>
+              <div className='flex gap-2'>
+                <Input 
+                  value={ageGroupInput} 
+                  onChange={e => setAgeGroupInput(e.target.value)}
+                  onKeyPress={e => e.key === 'Enter' && (e.preventDefault(), addAgeGroup())}
+                  placeholder='e.g., children, adults (Enter)'
+                />
+                <Button type='button' size='sm' onClick={addAgeGroup}>+</Button>
+              </div>
+              <div className='flex flex-wrap gap-1'>
+                {(metadataData.target_age_group || []).map((group, i) => (
+                  <span key={i} className='inline-flex items-center gap-1 px-2 py-0.5 bg-secondary rounded text-xs'>
+                    {group}
+                    <button type='button' onClick={() => removeAgeGroup(i)} className='text-red-500 hover:text-red-700'>×</button>
+                  </span>
+                ))}
+              </div>
+              <p className='text-xs text-muted-foreground'>e.g., children, teens, adults, elderly</p>
+            </div>
+
+            <div className='pt-3 border-t'>
+              <p className='text-xs font-semibold text-muted-foreground mb-3'>Specific untuk Product/Paket</p>
+              
+              <div className='space-y-2'>
+                <Label className='text-sm font-medium'>Package Includes</Label>
+                <div className='flex gap-2'>
+                  <Input 
+                    value={includesInput} 
+                    onChange={e => setIncludesInput(e.target.value)}
+                    onKeyPress={e => e.key === 'Enter' && (e.preventDefault(), addInclude())}
+                    placeholder='e.g., guide, equipment (Enter)'
+                  />
+                  <Button type='button' size='sm' onClick={addInclude}>+</Button>
+                </div>
+                <div className='flex flex-wrap gap-1'>
+                  {(metadataData.includes || []).map((item, i) => (
+                    <span key={i} className='inline-flex items-center gap-1 px-2 py-0.5 bg-green-100 rounded text-xs'>
+                      {item}
+                      <button type='button' onClick={() => removeInclude(i)} className='text-red-500 hover:text-red-700'>×</button>
+                    </span>
+                  ))}
+                </div>
+                <p className='text-xs text-muted-foreground'>e.g., guide, equipment, meal, insurance, transport</p>
+              </div>
+
+              <div className='space-y-2 mt-3'>
+                <Label className='text-sm font-medium'>Requirements</Label>
+                <div className='flex gap-2'>
+                  <Input 
+                    value={requirementsInput} 
+                    onChange={e => setRequirementsInput(e.target.value)}
+                    onKeyPress={e => e.key === 'Enter' && (e.preventDefault(), addRequirement())}
+                    placeholder='e.g., swimming skill (Enter)'
+                  />
+                  <Button type='button' size='sm' onClick={addRequirement}>+</Button>
+                </div>
+                <div className='flex flex-wrap gap-1'>
+                  {(metadataData.requirements || []).map((req, i) => (
+                    <span key={i} className='inline-flex items-center gap-1 px-2 py-0.5 bg-orange-100 rounded text-xs'>
+                      {req}
+                      <button type='button' onClick={() => removeRequirement(i)} className='text-red-500 hover:text-red-700'>×</button>
+                    </span>
+                  ))}
+                </div>
+                <p className='text-xs text-muted-foreground'>e.g., swimming_skill, fitness_level, age_restriction</p>
+              </div>
+
+              <div className='space-y-2 mt-3'>
+                <Label className='text-sm font-medium'>Group Size</Label>
+                <div className='flex gap-2'>
+                  <div className='flex-1'>
+                    <Input 
+                      type='number'
+                      placeholder='Min'
+                      value={metadataData.group_size?.min || ''}
+                      onChange={e => setMetadataData(prev => ({
+                        ...prev,
+                        group_size: {
+                          ...(prev.group_size || {}),
+                          min: e.target.value ? parseInt(e.target.value) : undefined
+                        }
+                      }))}
+                    />
+                  </div>
+                  <div className='flex-1'>
+                    <Input 
+                      type='number'
+                      placeholder='Max'
+                      value={metadataData.group_size?.max || ''}
+                      onChange={e => setMetadataData(prev => ({
+                        ...prev,
+                        group_size: {
+                          ...(prev.group_size || {}),
+                          max: e.target.value ? parseInt(e.target.value) : undefined
+                        }
+                      }))}
+                    />
+                  </div>
+                </div>
+                <p className='text-xs text-muted-foreground'>Min & max participants for this package</p>
+              </div>
+            </div>
           </div>
         </form>
         {!isMobile && (
@@ -339,11 +662,6 @@ export default function ProductFormBase({ item, mode, overlays = [], destination
                     </div>
                   )}
                 </div>
-              </div>
-            )}
-            {editing && (
-              <div className='pointer-events-none absolute inset-0'>
-                {overlayList.map(o => (<OverlayAligned key={o.id} overlay={o} />))}
               </div>
             )}
           </div>

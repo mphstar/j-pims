@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Pariwisata;
 use App\Models\PariwisataProduct;
+use App\Models\PariwisataMetadata;
+use App\Models\PariwisataProductMetadata;
 use App\Models\Setting;
 use App\Http\Resources\DestinationResource;
 use Illuminate\Http\Request;
@@ -13,13 +15,68 @@ class FrontendController extends Controller
 {
     public function index()
     {
-        $pariwisata = Pariwisata::with('overlays')->get();
+        $pariwisata = Pariwisata::with(['overlays', 'metadata'])->get();
         $setting = Setting::first();
+        
+        // Get metadata options from database
+        $metadataOptions = $this->getMetadataOptions();
         
         return Inertia::render('frontend/PariwisataView', [
             'pariwisata' => $pariwisata,
             'setting' => $setting ?: ['style' => 'column'],
+            'metadataOptions' => $metadataOptions,
         ]);
+    }
+    
+    /**
+     * Get available metadata options from existing data
+     */
+    private function getMetadataOptions()
+    {
+        // Get unique values from existing metadata
+        $destinationMetadata = PariwisataMetadata::select('activity_level', 'price_range', 'best_season', 'tags')
+            ->whereNotNull('activity_level')
+            ->orWhereNotNull('price_range')
+            ->orWhereNotNull('best_season')
+            ->orWhereNotNull('tags')
+            ->get();
+            
+        $productMetadata = PariwisataProductMetadata::select('activity_level', 'price_range', 'best_season', 'tags')
+            ->whereNotNull('activity_level')
+            ->orWhereNotNull('price_range')
+            ->orWhereNotNull('best_season')
+            ->orWhereNotNull('tags')
+            ->get();
+
+        // Combine and get unique values
+        $activityLevels = collect([
+            ...$destinationMetadata->pluck('activity_level')->filter(),
+            ...$productMetadata->pluck('activity_level')->filter()
+        ])->unique()->values()->toArray();
+
+        $priceRanges = collect([
+            ...$destinationMetadata->pluck('price_range')->filter(),
+            ...$productMetadata->pluck('price_range')->filter()
+        ])->unique()->values()->toArray();
+
+        $bestSeasons = collect([
+            ...$destinationMetadata->pluck('best_season')->filter(),
+            ...$productMetadata->pluck('best_season')->filter()
+        ])->unique()->values()->toArray();
+
+        // Extract tags from JSON arrays (for future use)
+        $allTags = collect([
+            ...$destinationMetadata->pluck('tags')->filter()->flatten(),
+            ...$productMetadata->pluck('tags')->filter()->flatten()
+        ])->unique()->values()->toArray();
+
+        // Fallback to enum options if no data exists
+        return [
+            'activity_levels' => count($activityLevels) > 0 ? $activityLevels : ['easy', 'moderate', 'challenging'],
+            'price_ranges' => count($priceRanges) > 0 ? $priceRanges : ['budget', 'moderate', 'expensive', 'luxury'],
+            'best_seasons' => $bestSeasons,
+            'tags' => $allTags,
+        ];
     }
 
     public function show($slug)
@@ -33,7 +90,7 @@ class FrontendController extends Controller
 
     public function products($slug)
     {
-        $item = Pariwisata::with(['overlays','products.overlays'])->where('slug', $slug)->firstOrFail();
+        $item = Pariwisata::with(['overlays', 'metadata', 'products.overlays', 'products.metadata'])->where('slug', $slug)->firstOrFail();
         // Build destination payload with nested products
         $destination = (new DestinationResource($item));
         $setting = Setting::first();

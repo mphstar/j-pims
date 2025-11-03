@@ -65,6 +65,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('{pariwisata}/overlays', [PariwisataController::class, 'storeOverlay'])->name('pariwisata.overlays.store');
         Route::post('overlays/{overlay}', [PariwisataController::class, 'updateOverlay'])->name('pariwisata.overlays.update');
         Route::post('overlays/{overlay}/delete', [PariwisataController::class, 'deleteOverlay'])->name('pariwisata.overlays.delete');
+
+        // Metadata
+        Route::post('{pariwisata}/metadata', [PariwisataController::class, 'storeMetadata'])->name('pariwisata.metadata.store');
     });
 
     // Products (Admin)
@@ -81,6 +84,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('{product}/overlays', [PariwisataProductController::class, 'storeOverlay'])->name('product.overlays.store');
         Route::post('overlays/{overlay}', [PariwisataProductController::class, 'updateOverlay'])->name('product.overlays.update');
         Route::post('overlays/{overlay}/delete', [PariwisataProductController::class, 'deleteOverlay'])->name('product.overlays.delete');
+
+        // Metadata
+        Route::post('{product}/metadata', [PariwisataProductController::class, 'storeMetadata'])->name('product.metadata.store');
     });
 
     // Access from pariwisata action: /pariwisata/{pariwisata}/product

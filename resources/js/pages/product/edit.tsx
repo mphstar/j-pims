@@ -10,7 +10,7 @@ const breadcrumbsBase: BreadcrumbItem[] = [
 ];
 
 export default function EditProduct() {
-  const { item, destinations, overlays } = usePage().props as any;
+  const { item, destinations, overlays, metadata } = usePage().props as any;
 
   const breadcrumbs: BreadcrumbItem[] = [...breadcrumbsBase, { title: 'Edit', href: '#' }];
 
@@ -18,7 +18,7 @@ export default function EditProduct() {
     <AppLayout breadcrumbs={breadcrumbs}>
       <Head title={'Edit: ' + (item?.title || '')} />
       <div className="max-w-full">
-        <ProductFormBase mode='edit' item={item} overlays={overlays || []} destinations={destinations || []} />
+        <ProductFormBase mode='edit' item={item} overlays={overlays || []} destinations={destinations || []} metadata={metadata} />
       </div>
     </AppLayout>
   );

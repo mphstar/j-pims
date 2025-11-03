@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\PariwisataController;
 use App\Http\Controllers\Api\DestinationController;
 use App\Http\Controllers\Api\SettingController;
+use App\Http\Controllers\MetadataOptionsController;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -21,3 +22,6 @@ Route::get('/destinations/{slug}', [DestinationController::class, 'show']);
 // Setting API
 Route::get('/setting', [SettingController::class, 'index']);
 Route::match(['post', 'put', 'patch'], '/setting', [SettingController::class, 'update'])->middleware('auth:sanctum');
+
+// Metadata Options API
+Route::get('/metadata-options', [MetadataOptionsController::class, 'index']);

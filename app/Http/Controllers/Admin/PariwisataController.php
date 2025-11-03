@@ -120,10 +120,11 @@ class PariwisataController extends Controller
 
     public function edit(Pariwisata $pariwisata)
     {
-        $pariwisata->load('overlays');
+        $pariwisata->load(['overlays', 'metadata']);
         return Inertia::render('pariwisata/edit', [
             'item' => $pariwisata,
             'overlays' => $pariwisata->overlays,
+            'metadata' => $pariwisata->metadata,
         ]);
     }
 
@@ -230,5 +231,30 @@ class PariwisataController extends Controller
             $item->delete();
         }
         return redirect()->route('pariwisata.index')->with('success', 'Selected pariwisata deleted');
+    }
+
+    // Metadata CRUD
+    public function storeMetadata(Request $request, Pariwisata $pariwisata)
+    {
+        $validated = $request->validate([
+            'activity_level' => 'nullable|in:easy,moderate,challenging',
+            'price_range' => 'nullable|in:budget,moderate,expensive,luxury',
+            'best_season' => 'nullable|string|max:255',
+            'tags' => 'nullable|array',
+            'tags.*' => 'string|max:100',
+            'duration_hours' => 'nullable|numeric|min:0|max:999.99',
+            'target_age_group' => 'nullable|array',
+            'target_age_group.*' => 'string|max:50',
+            'facilities' => 'nullable|array',
+            'facilities.*' => 'string|max:100',
+            'accessibility' => 'nullable|in:wheelchair_friendly,child_friendly,elderly_friendly,all_accessible',
+        ]);
+
+        $pariwisata->metadata()->updateOrCreate(
+            ['pariwisata_id' => $pariwisata->id],
+            $validated
+        );
+
+        return redirect()->route('pariwisata.edit', $pariwisata->id)->with('success', 'Metadata updated');
     }
 }
