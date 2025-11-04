@@ -130,7 +130,13 @@ export default function ProductFormBase({ item, mode, overlays = [], destination
       options.forceFormData = true;
     }
     router.post(url, submitData, {
-      onSuccess: () => toast.success(editing ? 'Data updated' : 'Data created'),
+      onSuccess: () => {
+        toast.success(editing ? 'Data updated' : 'Data created');
+        // Redirect to product list of the parent destination
+        if (data.pariwisata_id) {
+          router.visit(route('product.by-pariwisata', data.pariwisata_id));
+        }
+      },
       onError: () => toast.error('Gagal menyimpan'),
       ...options
     });

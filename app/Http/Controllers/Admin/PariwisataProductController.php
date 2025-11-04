@@ -136,7 +136,7 @@ class PariwisataProductController extends Controller
         unset($validated['background_image']);
 
         $product->update($validated);
-        return redirect()->route('product.index')->with('success', 'Product updated');
+        return redirect()->route('product.by-pariwisata', $product->pariwisata_id)->with('success', 'Product updated');
     }
 
     public function destroy(PariwisataProduct $product)
