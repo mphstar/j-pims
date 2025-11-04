@@ -18,6 +18,7 @@ const Flip = ({ children }: {
           <motion.span
             key={i}
             className="inline-block"
+            style={{ minWidth: l === " " ? "0.3em" : undefined }}
             variants={{
               initial: { y: 0 },
               hovered: { y: "-100%" },
@@ -28,7 +29,7 @@ const Flip = ({ children }: {
               delay: STAGGER * i,
             }}
           >
-            {l}
+            {l === " " ? "\u00A0" : l}
           </motion.span>
         ))}
       </div>
@@ -38,6 +39,7 @@ const Flip = ({ children }: {
           <motion.span
             key={i}
             className="inline-block"
+            style={{ minWidth: l === " " ? "0.3em" : undefined }}
             variants={{
               initial: { y: "100%" },
               hovered: { y: 0 },
@@ -48,7 +50,7 @@ const Flip = ({ children }: {
               delay: STAGGER * i,
             }}
           >
-            {l}
+            {l === " " ? "\u00A0" : l}
           </motion.span>
         ))}
       </div>

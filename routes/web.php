@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Api\PariwisataApiController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FrontendController;
+use App\Http\Controllers\SearchController;
 use Illuminate\Support\Facades\Route;
 
 // Route::get('/', function () {
@@ -16,6 +17,7 @@ use Illuminate\Support\Facades\Route;
 
 // Frontend Routes (Public)
 Route::get('/', [FrontendController::class, 'index'])->name('home');
+Route::get('/search', [SearchController::class, 'index'])->name('search');
 Route::get('/destinasi/{slug}/produk', [FrontendController::class, 'products'])->name('frontend.destination.products');
 Route::get('/destinasi/{slug}/produk/{product}', [FrontendController::class, 'product'])->name('frontend.product.view');
 // SEO friendly product page by destination slug

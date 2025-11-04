@@ -104,16 +104,16 @@ class FrontendController extends Controller
     public function product($slug, $product)
     {
         $dest = Pariwisata::where('slug', $slug)->firstOrFail();
-        $prod = PariwisataProduct::with('overlays')->where('pariwisata_id', $dest->id)->where('slug', $product)->firstOrFail();
+        $prod = PariwisataProduct::with(['overlays', 'metadata'])->where('pariwisata_id', $dest->id)->where('slug', $product)->firstOrFail();
         $setting = Setting::first();
-        // Also load destination overlays for fallback rendering if product has none
-        $dest->load('overlays');
+        // Also load destination overlays and metadata for fallback rendering if product has none
+        $dest->load(['overlays', 'metadata']);
         return Inertia::render('frontend/ProductView', [
-            'destination' => $dest->only(['id','title','slug','label','subtitle','content','background_url','cta_href','cta_label','align']) + ['overlays' => $dest->overlays],
-            'product' => $prod->only(['id','title','slug','label','subtitle','content','background_url','cta_href','cta_label','align']) + ['overlays' => $prod->overlays],
+            'destination' => $dest->only(['id','title','slug','label','subtitle','content','background_url','cta_href','cta_label','align']) + ['overlays' => $dest->overlays, 'metadata' => $dest->metadata],
+            'product' => $prod->only(['id','title','slug','label','subtitle','content','background_url','cta_href','cta_label','align']) + ['overlays' => $prod->overlays, 'metadata' => $prod->metadata],
             // Provide products array to allow multi-product rendering on the frontend
             'products' => [
-                $prod->only(['id','title','slug','label','subtitle','content','background_url','cta_href','cta_label','align']) + ['overlays' => $prod->overlays]
+                $prod->only(['id','title','slug','label','subtitle','content','background_url','cta_href','cta_label','align']) + ['overlays' => $prod->overlays, 'metadata' => $prod->metadata]
             ],
             'setting' => $setting ?: ['style' => 'column'],
         ]);
@@ -122,14 +122,14 @@ class FrontendController extends Controller
     public function productById(\App\Models\PariwisataProduct $product)
     {
         // Render a single product in the same style as a pariwisata section (no variants)
-        $product->load('overlays', 'pariwisata.overlays');
+        $product->load(['overlays', 'metadata', 'pariwisata.overlays', 'pariwisata.metadata']);
         $setting = Setting::first();
         $destination = $product->pariwisata;
         return Inertia::render('frontend/ProductView', [
-            'destination' => $destination->only(['id','title','slug','label','subtitle','content','background_url','cta_href','cta_label','align']) + ['overlays' => $destination->overlays],
-            'product' => $product->only(['id','title','slug','label','subtitle','content','background_url','cta_href','cta_label','align']) + ['overlays' => $product->overlays],
+            'destination' => $destination->only(['id','title','slug','label','subtitle','content','background_url','cta_href','cta_label','align']) + ['overlays' => $destination->overlays, 'metadata' => $destination->metadata],
+            'product' => $product->only(['id','title','slug','label','subtitle','content','background_url','cta_href','cta_label','align']) + ['overlays' => $product->overlays, 'metadata' => $product->metadata],
             'products' => [
-                $product->only(['id','title','slug','label','subtitle','content','background_url','cta_href','cta_label','align']) + ['overlays' => $product->overlays]
+                $product->only(['id','title','slug','label','subtitle','content','background_url','cta_href','cta_label','align']) + ['overlays' => $product->overlays, 'metadata' => $product->metadata]
             ],
             'setting' => $setting ?: ['style' => 'column'],
         ]);
@@ -138,21 +138,22 @@ class FrontendController extends Controller
     public function productBySlug($slug)
     {
         // Find destination by slug and render all its products as sections
-        $dest = Pariwisata::with(['overlays','products.overlays'])->where('slug', $slug)->firstOrFail();
+        $dest = Pariwisata::with(['overlays', 'metadata', 'products.overlays', 'products.metadata'])->where('slug', $slug)->firstOrFail();
         $setting = Setting::first();
         $products = $dest->products->map(function($p){
-            return $p->only(['id','title','slug','label','subtitle','content','background_url','cta_href','cta_label','align']) + ['overlays' => $p->overlays];
+            return $p->only(['id','title','slug','label','subtitle','content','background_url','cta_href','cta_label','align']) + ['overlays' => $p->overlays, 'metadata' => $p->metadata];
         })->values();
 
         // If no explicit products, fabricate one from destination
         if ($products->isEmpty()) {
             $productArray = $dest->only(['id','title','slug','label','subtitle','content','background_url','cta_href','cta_label','align']);
             $productArray['overlays'] = [];
+            $productArray['metadata'] = $dest->metadata;
             $products = collect([$productArray]);
         }
 
         return Inertia::render('frontend/ProductView', [
-            'destination' => $dest->only(['id','title','slug','label','subtitle','content','background_url','cta_href','cta_label','align']) + ['overlays' => $dest->overlays],
+            'destination' => $dest->only(['id','title','slug','label','subtitle','content','background_url','cta_href','cta_label','align']) + ['overlays' => $dest->overlays, 'metadata' => $dest->metadata],
             // keep single 'product' for backward compat (first item)
             'product' => $products->first(),
             'products' => $products,

@@ -1,6 +1,6 @@
 import { useRef, useEffect, useState } from "react";
 import { animate, type AnimationPlaybackControls } from "framer-motion";
-import { Head } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 import { CursorBullet } from "@/components/organisms/CursorBullet";
 import { Section, SectionData } from "@/components/organisms/Section";
 import { CarouselSection } from "@/components/organisms/CarouselSection";
@@ -84,6 +84,15 @@ interface Props {
 
 
 export default function PariwisataView({ pariwisata, destinations, setting, metadataOptions }: Props) {
+  // Check if we have 'open' query parameter for direct link mode
+  const [isDirectLink, setIsDirectLink] = useState(false);
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      setIsDirectLink(!!params.get('open'));
+    } catch {}
+  }, []);
+
   // ===== Personalization State (localStorage backed) =====
   const safeStorage = typeof window !== 'undefined' ? window.localStorage : undefined;
   // Layout: fixed to column for snap scroll experience
@@ -133,7 +142,15 @@ export default function PariwisataView({ pariwisata, destinations, setting, meta
   });
   useEffect(() => { try { safeStorage?.setItem('jp_motion', reducedMotion ? 'reduced' : 'high'); } catch {} }, [reducedMotion]);
 
-  const [onboardingOpen, setOnboardingOpen] = useState<boolean>(true);
+  // Only show onboarding if not a direct link
+  const [onboardingOpen, setOnboardingOpen] = useState<boolean>(() => !isDirectLink);
+  
+  // Update onboarding state when isDirectLink changes
+  useEffect(() => {
+    if (isDirectLink) {
+      setOnboardingOpen(false);
+    }
+  }, [isDirectLink]);
 
   const recordClick = (sec: SectionData) => {
     // recent
@@ -642,24 +659,26 @@ export default function PariwisataView({ pariwisata, destinations, setting, meta
 
   return (
     <>
-      {/* Onboarding dialog (first visit or when reopened) */}
-      <OnboardingDialog
-        open={onboardingOpen}
-        onOpenChange={(v) => {
-          setOnboardingOpen(v);
-        }}
-        labels={allLabels}
-        initialPrefLabels={prefLabels}
-        initialMotion={reducedMotion ? 'reduced' : 'high'}
-        metadataOptions={metadataOptions}
-        onSave={({ prefLabels: pl, motion, activityLevel: al, priceRange: pr, bestSeason: bs }) => {
-          setPrefLabels(pl);
-          setReducedMotion(motion === 'reduced');
-          if (al) setActivityLevel(al);
-          if (pr) setPriceRange(pr);
-          if (bs) setBestSeason(bs);
-        }}
-      />
+      {/* Onboarding dialog (first visit or when reopened) - Hide for direct links */}
+      {!isDirectLink && (
+        <OnboardingDialog
+          open={onboardingOpen}
+          onOpenChange={(v) => {
+            setOnboardingOpen(v);
+          }}
+          labels={allLabels}
+          initialPrefLabels={prefLabels}
+          initialMotion={reducedMotion ? 'reduced' : 'high'}
+          metadataOptions={metadataOptions}
+          onSave={({ prefLabels: pl, motion, activityLevel: al, priceRange: pr, bestSeason: bs }) => {
+            setPrefLabels(pl);
+            setReducedMotion(motion === 'reduced');
+            if (al) setActivityLevel(al);
+            if (pr) setPriceRange(pr);
+            if (bs) setBestSeason(bs);
+          }}
+        />
+      )}
       <Head title="Destinasi Pariwisata" />
       {isRowLayout ? (
         // Carousel Layout
@@ -671,15 +690,44 @@ export default function PariwisataView({ pariwisata, destinations, setting, meta
             brand="J-PiMS"
             actions={(
               <div className="flex items-center gap-2">
-                {/* Re-open onboarding */}
-                <button
-                  onClick={() => {
-                    setOnboardingOpen(true);
-                  }}
-                  className="px-3 h-9 rounded-md border border-white/15 bg-white/5 hover:bg-white/15 text-white/80 hover:text-white text-xs font-medium transition"
-                >
-                  Personalisasi
-                </button>
+                {isDirectLink ? (
+                  // Direct link mode - only show back button
+                  <Link
+                    href={route('home')}
+                    className="px-3 h-9 rounded-md border border-white/15 bg-white/5 hover:bg-white/15 text-white/80 hover:text-white text-xs font-medium transition flex items-center justify-center"
+                  >
+                    Kembali
+                  </Link>
+                ) : (
+                  <>
+                    {/* Search button */}
+                    <Link
+                      href={route('search')}
+                      className="px-3 h-9 rounded-md border border-white/15 bg-white/5 hover:bg-white/15 text-white/80 hover:text-white text-xs font-medium transition flex items-center gap-2"
+                    >
+                      <svg 
+                        xmlns="http://www.w3.org/2000/svg" 
+                        fill="none" 
+                        viewBox="0 0 24 24" 
+                        strokeWidth={2} 
+                        stroke="currentColor" 
+                        className="w-4 h-4"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                      </svg>
+                      Cari
+                    </Link>
+                    {/* Re-open onboarding */}
+                    <button
+                      onClick={() => {
+                        setOnboardingOpen(true);
+                      }}
+                      className="px-3 h-9 rounded-md border border-white/15 bg-white/5 hover:bg-white/15 text-white/80 hover:text-white text-xs font-medium transition flex items-center justify-center"
+                    >
+                      Personalisasi
+                    </button>
+                  </>
+                )}
                 {/* Personalized ordering only; filter UI removed intentionally */}
                 {/* Removed 'Lanjutkan' quick link per request */}
               </div>
@@ -734,14 +782,43 @@ export default function PariwisataView({ pariwisata, destinations, setting, meta
             brand="J-PiMS"
             actions={(
               <div className="flex items-center gap-2">
-                <button
-                  onClick={() => {
-                    setOnboardingOpen(true);
-                  }}
-                  className="px-3 h-9 rounded-md border border-white/15 bg-white/5 hover:bg-white/15 text-white/80 hover:text-white text-xs font-medium transition"
-                >
-                  Personalisasi
-                </button>
+                {isDirectLink ? (
+                  // Direct link mode - only show back button
+                  <Link
+                    href={route('home')}
+                    className="px-3 h-9 rounded-md border border-white/15 bg-white/5 hover:bg-white/15 text-white/80 hover:text-white text-xs font-medium transition flex items-center justify-center"
+                  >
+                    Kembali
+                  </Link>
+                ) : (
+                  <>
+                    {/* Search button */}
+                    <Link
+                      href={route('search')}
+                      className="px-3 h-9 rounded-md border border-white/15 bg-white/5 hover:bg-white/15 text-white/80 hover:text-white text-xs font-medium transition flex items-center gap-2"
+                    >
+                      <svg 
+                        xmlns="http://www.w3.org/2000/svg" 
+                        fill="none" 
+                        viewBox="0 0 24 24" 
+                        strokeWidth={2} 
+                        stroke="currentColor" 
+                        className="w-4 h-4"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                      </svg>
+                      Cari
+                    </Link>
+                    <button
+                      onClick={() => {
+                        setOnboardingOpen(true);
+                      }}
+                      className="px-3 h-9 rounded-md border border-white/15 bg-white/5 hover:bg-white/15 text-white/80 hover:text-white text-xs font-medium transition flex items-center justify-center"
+                    >
+                      Personalisasi
+                    </button>
+                  </>
+                )}
                 {/* Personalized ordering only; filter UI removed intentionally */}
                 {/* Removed 'Lanjutkan' quick link per request */}
               </div>

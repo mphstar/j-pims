@@ -173,8 +173,15 @@ export const Section = forwardRef<HTMLDivElement, { data: SectionData; index: nu
                     })}
                 </motion.div>
             )}
-            <motion.div initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ amount: 0.6, once: false }} transition={{ duration: 0.6, ease: 'easeOut' }} className={`pl-4 md:pl-8 pr-4 md:pr-8 max-w-5xl w-full ${align === 'right' ? 'text-right mr-12' : 'text-left ml-12'}`}>
-                {title.trim().split(/\s+/).map(w => <Flip key={w}>{w}</Flip>)}
+            {/* Centered Content Container */}
+            <motion.div 
+                initial={{ opacity: 0, y: 24 }} 
+                whileInView={{ opacity: 1, y: 0 }} 
+                viewport={{ amount: 0.3, once: false }} 
+                transition={{ duration: 0.6, ease: 'easeOut' }} 
+                className={`px-4 md:px-8 max-w-7xl w-full ${align === 'right' ? 'text-right md:mr-12' : 'text-left md:ml-12'}`}
+            >
+                <Flip>{title}</Flip>
                 {subtitle && <p className="mt-4 text-white/90 md:text-xl font-light tracking-wide">{subtitle}</p>}
                 {content && <div className="mt-8">{content}</div>}
                 {ctaHref && (
@@ -182,7 +189,6 @@ export const Section = forwardRef<HTMLDivElement, { data: SectionData; index: nu
                         <FancyButton
                             href={ctaHref}
                             onClick={(e) => {
-                                // allow parent to record personalization before navigation
                                 try { onCtaClick?.(data); } catch {}
                             }}
                         >
@@ -191,7 +197,7 @@ export const Section = forwardRef<HTMLDivElement, { data: SectionData; index: nu
                     </div>
                 )}
             </motion.div>
-            <div className="absolute bottom-6 left-6 text-white/60 font-mono">{String(index + 1).padStart(2, '0')}</div>
+            <div className="absolute bottom-6 left-6 text-white/60 font-mono pointer-events-none">{String(index + 1).padStart(2, '0')}</div>
         </section>
     );
 });
