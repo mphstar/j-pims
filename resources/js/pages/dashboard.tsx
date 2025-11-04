@@ -86,7 +86,7 @@ export default function Dashboard({ stats, setting }: Props) {
                 </div>
 
                 {/* Settings Section */}
-                <Card>
+                {/* <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                             <Settings className="h-5 w-5" />
@@ -120,7 +120,7 @@ export default function Dashboard({ stats, setting }: Props) {
                             </div>
                         </form>
                     </CardContent>
-                </Card>
+                </Card> */}
 
                 {/* Stats Cards */}
                 <div className={cn(
