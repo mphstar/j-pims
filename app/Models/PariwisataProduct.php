@@ -30,4 +30,9 @@ class PariwisataProduct extends Model
     {
         return $this->hasOne(PariwisataProductMetadata::class, 'product_id');
     }
+
+    public function preferenceValues()
+    {
+        return $this->belongsToMany(\App\Models\PreferenceValue::class, 'pariwisata_product_preference_values', 'product_id', 'preference_value_id');
+    }
 }

@@ -122,20 +122,51 @@ export default function PariwisataView({ pariwisata, destinations, setting, meta
   useEffect(() => { try { safeStorage?.setItem('jp_pref_labels', JSON.stringify(prefLabels)); } catch {} }, [prefLabels]);
 
   // Metadata preferences for personalization
-  const [activityLevel, setActivityLevel] = useState<string>(() => {
-    try { return safeStorage?.getItem('jp_activity_level') || ''; } catch { return ''; }
+  const [activityLevels, setActivityLevels] = useState<string[]>(() => {
+    try {
+      const multi = safeStorage?.getItem('jp_activity_levels');
+      if (multi) return JSON.parse(multi);
+      const single = safeStorage?.getItem('jp_activity_level');
+      return single ? [single] : [];
+    } catch { return []; }
   });
-  useEffect(() => { try { if (activityLevel) safeStorage?.setItem('jp_activity_level', activityLevel); } catch {} }, [activityLevel]);
+  useEffect(() => {
+    try {
+      safeStorage?.setItem('jp_activity_levels', JSON.stringify(activityLevels));
+      // Keep legacy key updated with first choice for backward compat (optional)
+      if (activityLevels[0]) safeStorage?.setItem('jp_activity_level', activityLevels[0]);
+    } catch {}
+  }, [activityLevels]);
 
-  const [priceRange, setPriceRange] = useState<string>(() => {
-    try { return safeStorage?.getItem('jp_price_range') || ''; } catch { return ''; }
+  const [priceRanges, setPriceRanges] = useState<string[]>(() => {
+    try {
+      const multi = safeStorage?.getItem('jp_price_ranges');
+      if (multi) return JSON.parse(multi);
+      const single = safeStorage?.getItem('jp_price_range');
+      return single ? [single] : [];
+    } catch { return []; }
   });
-  useEffect(() => { try { if (priceRange) safeStorage?.setItem('jp_price_range', priceRange); } catch {} }, [priceRange]);
+  useEffect(() => {
+    try {
+      safeStorage?.setItem('jp_price_ranges', JSON.stringify(priceRanges));
+      if (priceRanges[0]) safeStorage?.setItem('jp_price_range', priceRanges[0]);
+    } catch {}
+  }, [priceRanges]);
 
-  const [bestSeason, setBestSeason] = useState<string>(() => {
-    try { return safeStorage?.getItem('jp_best_season') || ''; } catch { return ''; }
+  const [bestSeasons, setBestSeasons] = useState<string[]>(() => {
+    try {
+      const multi = safeStorage?.getItem('jp_best_seasons');
+      if (multi) return JSON.parse(multi);
+      const single = safeStorage?.getItem('jp_best_season');
+      return single ? [single] : [];
+    } catch { return []; }
   });
-  useEffect(() => { try { if (bestSeason) safeStorage?.setItem('jp_best_season', bestSeason); } catch {} }, [bestSeason]);
+  useEffect(() => {
+    try {
+      safeStorage?.setItem('jp_best_seasons', JSON.stringify(bestSeasons));
+      if (bestSeasons[0]) safeStorage?.setItem('jp_best_season', bestSeasons[0]);
+    } catch {}
+  }, [bestSeasons]);
 
   const [reducedMotion, setReducedMotion] = useState<boolean>(() => {
     try { return (safeStorage?.getItem('jp_motion') || 'high') === 'reduced'; } catch { return false; }
@@ -187,15 +218,15 @@ export default function PariwisataView({ pariwisata, destinations, setting, meta
     // Calculate personalization score based on metadata
     const metadata = active.metadata || dest.metadata;
     const personalizationScore = calculatePersonalizationScore(metadata, {
-      activityLevel,
-      priceRange,
-      bestSeason,
+      activityLevel: activityLevels,
+      priceRange: priceRanges,
+      bestSeason: bestSeasons,
     });
     const badge = getPersonalizationBadge(personalizationScore);
     const detailBadges = getPersonalizationDetails(metadata, {
-      activityLevel,
-      priceRange,
-      bestSeason,
+      activityLevel: activityLevels,
+      priceRange: priceRanges,
+      bestSeason: bestSeasons,
     });
     
     return {
@@ -478,7 +509,7 @@ export default function PariwisataView({ pariwisata, destinations, setting, meta
     });
     return () => cancelAnimationFrame(id);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [prefLabels, labelCounts, activityLevel, priceRange, bestSeason]);
+  }, [prefLabels, labelCounts, activityLevels, priceRanges, bestSeasons]);
 
   const scrollToIndex = (idx: number, opts?: { overshoot?: boolean; behavior?: ScrollBehavior }) => {
     if (isStabilizingRef.current && opts?.behavior !== 'auto') return; // ignore user nav while stabilizing
@@ -670,12 +701,12 @@ export default function PariwisataView({ pariwisata, destinations, setting, meta
           initialPrefLabels={prefLabels}
           initialMotion={reducedMotion ? 'reduced' : 'high'}
           metadataOptions={metadataOptions}
-          onSave={({ prefLabels: pl, motion, activityLevel: al, priceRange: pr, bestSeason: bs }) => {
+          onSave={({ prefLabels: pl, motion, activityLevels: als, priceRanges: prs, bestSeasons: bss }) => {
             setPrefLabels(pl);
             setReducedMotion(motion === 'reduced');
-            if (al) setActivityLevel(al);
-            if (pr) setPriceRange(pr);
-            if (bs) setBestSeason(bs);
+            if (als) setActivityLevels(als);
+            if (prs) setPriceRanges(prs);
+            if (bss) setBestSeasons(bss);
           }}
         />
       )}

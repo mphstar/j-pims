@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface OverlayType {
   id: number;
@@ -57,6 +58,7 @@ const defaultValues = {
 
 export default function ProductFormBase({ item, mode, overlays = [], destinations, selectedPariwisataId, metadata = null }: Props) {
   const editing = mode === 'edit' && !!item;
+  const page = usePage().props as any;
   const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
 
   const { data, setData, processing, errors, clearErrors } = useForm<{ [K in keyof typeof defaultValues]: (typeof defaultValues)[K] } & { background_image?: File | null }>({ ...defaultValues, background_image: null });
@@ -84,6 +86,12 @@ export default function ProductFormBase({ item, mode, overlays = [], destination
   const [overlayList, setOverlayList] = useState<OverlayType[]>(overlays.map(o => ({ ...o, __dirty: false })));
   const [activeOverlayId, setActiveOverlayId] = useState<number | null>(null);
   const [overlayPanelOpen, setOverlayPanelOpen] = useState(true);
+  // Preference options/selected from backend
+  const preferenceOptions = (page?.preferenceOptions || { activity: [], price: [], season: [] }) as { [k: string]: Array<{ id: number; key: string; label: string }> };
+  const selectedPref = (page?.selectedPreferenceIds || { activity: [], price: [], season: [] }) as { [k: string]: number[] };
+  const [activityPrefIds, setActivityPrefIds] = useState<number[]>(selectedPref.activity || []);
+  const [pricePrefIds, setPricePrefIds] = useState<number[]>(selectedPref.price || []);
+  const [seasonPrefIds, setSeasonPrefIds] = useState<number[]>(selectedPref.season || []);
 
   useEffect(() => { setOverlayList(overlays.map(o => ({ ...o, __dirty: false }))); }, [overlays.map(o => o.id).join(','), overlays.length]);
 
@@ -149,7 +157,12 @@ export default function ProductFormBase({ item, mode, overlays = [], destination
     }
     
     setSavingMetadata(true);
-    router.post(route('product.metadata.store', item.id), metadataData as any, {
+    router.post(route('product.metadata.store', item.id), {
+      ...(metadataData as any),
+      activity_preference_ids: activityPrefIds,
+      price_preference_ids: pricePrefIds,
+      season_preference_ids: seasonPrefIds,
+    }, {
       preserveScroll: true,
       onSuccess: () => {
         toast.success('Metadata tersimpan');
@@ -426,6 +439,67 @@ export default function ProductFormBase({ item, mode, overlays = [], destination
                 placeholder='e.g., Mei-Oktober, Musim Kemarau'
               />
               <p className='text-xs text-muted-foreground'>Waktu terbaik berkunjung</p>
+            </div>
+
+            {/* Preference assignments (DB-driven) */}
+            <div className='grid grid-cols-1 gap-4 pt-2'>
+              <div>
+                <Label className='text-sm font-semibold'>Preferensi Aktivitas (bisa pilih banyak)</Label>
+                <div className='mt-2 flex flex-wrap gap-3'>
+                  {preferenceOptions.activity?.map(opt => (
+                    <label key={opt.id} className='inline-flex items-center gap-2 text-sm'>
+                      <Checkbox
+                        checked={activityPrefIds.includes(opt.id)}
+                        onCheckedChange={(checked) => {
+                          setActivityPrefIds(prev => checked ? [...prev, opt.id] : prev.filter(id => id !== opt.id));
+                        }}
+                      />
+                      <span>{opt.label} <span className='text-xs text-muted-foreground'>({opt.key})</span></span>
+                    </label>
+                  ))}
+                  {(!preferenceOptions.activity || preferenceOptions.activity.length === 0) && (
+                    <p className='text-xs text-muted-foreground'>Belum ada master preferensi aktivitas.</p>
+                  )}
+                </div>
+              </div>
+              <div>
+                <Label className='text-sm font-semibold'>Preferensi Harga</Label>
+                <div className='mt-2 flex flex-wrap gap-3'>
+                  {preferenceOptions.price?.map(opt => (
+                    <label key={opt.id} className='inline-flex items-center gap-2 text-sm'>
+                      <Checkbox
+                        checked={pricePrefIds.includes(opt.id)}
+                        onCheckedChange={(checked) => {
+                          setPricePrefIds(prev => checked ? [...prev, opt.id] : prev.filter(id => id !== opt.id));
+                        }}
+                      />
+                      <span>{opt.label} <span className='text-xs text-muted-foreground'>({opt.key})</span></span>
+                    </label>
+                  ))}
+                  {(!preferenceOptions.price || preferenceOptions.price.length === 0) && (
+                    <p className='text-xs text-muted-foreground'>Belum ada master preferensi harga.</p>
+                  )}
+                </div>
+              </div>
+              <div>
+                <Label className='text-sm font-semibold'>Preferensi Musim</Label>
+                <div className='mt-2 flex flex-wrap gap-3'>
+                  {preferenceOptions.season?.map(opt => (
+                    <label key={opt.id} className='inline-flex items-center gap-2 text-sm'>
+                      <Checkbox
+                        checked={seasonPrefIds.includes(opt.id)}
+                        onCheckedChange={(checked) => {
+                          setSeasonPrefIds(prev => checked ? [...prev, opt.id] : prev.filter(id => id !== opt.id));
+                        }}
+                      />
+                      <span>{opt.label} <span className='text-xs text-muted-foreground'>({opt.key})</span></span>
+                    </label>
+                  ))}
+                  {(!preferenceOptions.season || preferenceOptions.season.length === 0) && (
+                    <p className='text-xs text-muted-foreground'>Belum ada master preferensi musim.</p>
+                  )}
+                </div>
+              </div>
             </div>
 
             <div className='space-y-2'>

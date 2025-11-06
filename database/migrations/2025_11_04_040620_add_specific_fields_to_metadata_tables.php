@@ -13,15 +13,25 @@ return new class extends Migration
     {
         // Add specific fields to pariwisata_metadata
         Schema::table('pariwisata_metadata', function (Blueprint $table) {
-            $table->json('facilities')->nullable()->after('target_age_group'); // e.g., ["parking", "toilet", "restaurant", "wifi"]
-            $table->enum('accessibility', ['wheelchair_friendly', 'child_friendly', 'elderly_friendly', 'all_accessible'])->nullable()->after('facilities');
+            if (!Schema::hasColumn('pariwisata_metadata', 'facilities')) {
+                $table->json('facilities')->nullable()->after('target_age_group');
+            }
+            if (!Schema::hasColumn('pariwisata_metadata', 'accessibility')) {
+                $table->enum('accessibility', ['wheelchair_friendly', 'child_friendly', 'elderly_friendly', 'all_accessible'])->nullable()->after('facilities');
+            }
         });
 
         // Add specific fields to pariwisata_products_metadata
         Schema::table('pariwisata_products_metadata', function (Blueprint $table) {
-            $table->json('includes')->nullable()->after('target_age_group'); // e.g., ["guide", "equipment", "meal", "insurance"]
-            $table->json('requirements')->nullable()->after('includes'); // e.g., ["swimming_skill", "fitness_level"]
-            $table->json('group_size')->nullable()->after('requirements'); // e.g., {"min": 2, "max": 10}
+            if (!Schema::hasColumn('pariwisata_products_metadata', 'includes')) {
+                $table->json('includes')->nullable()->after('target_age_group');
+            }
+            if (!Schema::hasColumn('pariwisata_products_metadata', 'requirements')) {
+                $table->json('requirements')->nullable()->after('includes');
+            }
+            if (!Schema::hasColumn('pariwisata_products_metadata', 'group_size')) {
+                $table->json('group_size')->nullable()->after('requirements');
+            }
         });
     }
 
@@ -31,11 +41,24 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('pariwisata_metadata', function (Blueprint $table) {
-            $table->dropColumn(['facilities', 'accessibility']);
+            if (Schema::hasColumn('pariwisata_metadata', 'facilities')) {
+                $table->dropColumn('facilities');
+            }
+            if (Schema::hasColumn('pariwisata_metadata', 'accessibility')) {
+                $table->dropColumn('accessibility');
+            }
         });
 
         Schema::table('pariwisata_products_metadata', function (Blueprint $table) {
-            $table->dropColumn(['includes', 'requirements', 'group_size']);
+            if (Schema::hasColumn('pariwisata_products_metadata', 'includes')) {
+                $table->dropColumn('includes');
+            }
+            if (Schema::hasColumn('pariwisata_products_metadata', 'requirements')) {
+                $table->dropColumn('requirements');
+            }
+            if (Schema::hasColumn('pariwisata_products_metadata', 'group_size')) {
+                $table->dropColumn('group_size');
+            }
         });
     }
 };

@@ -16,9 +16,9 @@ interface OnboardingDialogProps {
   onSave: (data: {
     prefLabels: string[];
     motion: 'high' | 'reduced';
-    activityLevel?: string;
-    priceRange?: string;
-    bestSeason?: string;
+    activityLevels?: string[];
+    priceRanges?: string[];
+    bestSeasons?: string[];
   }) => void;
 }
 
@@ -32,15 +32,21 @@ export function OnboardingDialog({
   onSave,
 }: OnboardingDialogProps) {
   const [step, setStep] = useState(0);
-  const [activityLevel, setActivityLevel] = useState<string>('');
-  const [priceRange, setPriceRange] = useState<string>('');
-  const [bestSeason, setBestSeason] = useState<string>('');
+  const [activityLevelsSel, setActivityLevelsSel] = useState<string[]>([]);
+  const [priceRangesSel, setPriceRangesSel] = useState<string[]>([]);
+  const [bestSeasonsSel, setBestSeasonsSel] = useState<string[]>([]);
   const [prefLabels, setPrefLabels] = useState<string[]>(initialPrefLabels);
   const [motion, setMotion] = useState<'high' | 'reduced'>(initialMotion);
 
-  const activityLevels = metadataOptions?.activity_levels || ['easy', 'moderate', 'challenging'];
-  const priceRanges = metadataOptions?.price_ranges || ['budget', 'moderate', 'expensive', 'luxury'];
-  const bestSeasons = metadataOptions?.best_seasons || ['Januari-April', 'Mei-Oktober', 'Sepanjang Tahun'];
+  const activityLevels = (metadataOptions?.activity_levels && metadataOptions.activity_levels.length > 0)
+    ? metadataOptions.activity_levels
+    : ['easy', 'moderate', 'challenging'];
+  const priceRanges = (metadataOptions?.price_ranges && metadataOptions.price_ranges.length > 0)
+    ? metadataOptions.price_ranges
+    : ['budget', 'moderate', 'expensive', 'luxury'];
+  const bestSeasons = (metadataOptions?.best_seasons && metadataOptions.best_seasons.length > 0)
+    ? metadataOptions.best_seasons
+    : ['Januari-April', 'Mei-Oktober', 'Sepanjang Tahun'];
 
   const totalSteps = 6;
   const progress = ((step + 1) / totalSteps) * 100;
@@ -65,11 +71,15 @@ export function OnboardingDialog({
     onSave({
       prefLabels,
       motion,
-      activityLevel: activityLevel || undefined,
-      priceRange: priceRange || undefined,
-      bestSeason: bestSeason || undefined,
+      activityLevels: activityLevelsSel.length ? activityLevelsSel : undefined,
+      priceRanges: priceRangesSel.length ? priceRangesSel : undefined,
+      bestSeasons: bestSeasonsSel.length ? bestSeasonsSel : undefined,
     });
     onOpenChange(false);
+  };
+
+  const toggleStringIn = (value: string, list: string[], setter: (next: string[]) => void) => {
+    setter(list.includes(value) ? list.filter((v) => v !== value) : [...list, value]);
   };
 
   const toggleLabel = (label: string) => {
@@ -178,16 +188,16 @@ export function OnboardingDialog({
                   <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">
                     Tingkat Aktivitas Favorit
                   </h2>
-                  <p className="text-white/60">Pilih tingkat aktivitas yang Anda sukai saat berwisata</p>
+                  <p className="text-white/60">Pilih satu atau lebih tingkat aktivitas yang Anda sukai</p>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {activityLevels.map((level) => (
                     <button
                       key={level}
-                      onClick={() => setActivityLevel(level)}
+                      onClick={() => toggleStringIn(level, activityLevelsSel, setActivityLevelsSel)}
                       className={`p-6 rounded-xl border-2 transition-all duration-300 hover:scale-105 ${
-                        activityLevel === level
+                        activityLevelsSel.includes(level)
                           ? 'border-purple-500 bg-purple-500/20 shadow-lg shadow-purple-500/30'
                           : 'border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/10'
                       }`}
@@ -215,16 +225,16 @@ export function OnboardingDialog({
                   <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">
                     Range Harga
                   </h2>
-                  <p className="text-white/60">Pilih kisaran harga yang sesuai dengan budget Anda</p>
+                  <p className="text-white/60">Pilih satu atau lebih kisaran harga yang sesuai</p>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {priceRanges.map((range) => (
                     <button
                       key={range}
-                      onClick={() => setPriceRange(range)}
+                      onClick={() => toggleStringIn(range, priceRangesSel, setPriceRangesSel)}
                       className={`p-6 rounded-xl border-2 transition-all duration-300 hover:scale-105 ${
-                        priceRange === range
+                        priceRangesSel.includes(range)
                           ? 'border-amber-500 bg-amber-500/20 shadow-lg shadow-amber-500/30'
                           : 'border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/10'
                       }`}
@@ -253,16 +263,16 @@ export function OnboardingDialog({
                   <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">
                     Waktu Kunjungan Ideal
                   </h2>
-                  <p className="text-white/60">Kapan Anda berencana untuk berkunjung?</p>
+                  <p className="text-white/60">Pilih satu atau lebih waktu kunjungan favorit</p>
                 </div>
 
                 <div className="grid grid-cols-1 gap-4">
                   {bestSeasons.map((season) => (
                     <button
                       key={season}
-                      onClick={() => setBestSeason(season)}
+                      onClick={() => toggleStringIn(season, bestSeasonsSel, setBestSeasonsSel)}
                       className={`p-6 rounded-xl border-2 transition-all duration-300 hover:scale-[1.02] ${
-                        bestSeason === season
+                        bestSeasonsSel.includes(season)
                           ? 'border-cyan-500 bg-cyan-500/20 shadow-lg shadow-cyan-500/30'
                           : 'border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/10'
                       }`}

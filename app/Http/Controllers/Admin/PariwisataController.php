@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Pariwisata;
 use App\Models\PariwisataOverlays;
+use App\Models\PreferenceValue;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Str;
@@ -120,11 +121,25 @@ class PariwisataController extends Controller
 
     public function edit(Pariwisata $pariwisata)
     {
-        $pariwisata->load(['overlays', 'metadata']);
+        $pariwisata->load(['overlays', 'metadata', 'preferenceValues']);
+        $prefActivity = PreferenceValue::where('type','activity')->where('active',true)->orderBy('sort')->get(['id','key','label']);
+        $prefPrice = PreferenceValue::where('type','price')->where('active',true)->orderBy('sort')->get(['id','key','label']);
+        $prefSeason = PreferenceValue::where('type','season')->where('active',true)->orderBy('sort')->get(['id','key','label']);
+        $selected = [
+            'activity' => $pariwisata->preferenceValues->where('type','activity')->pluck('id')->values(),
+            'price' => $pariwisata->preferenceValues->where('type','price')->pluck('id')->values(),
+            'season' => $pariwisata->preferenceValues->where('type','season')->pluck('id')->values(),
+        ];
         return Inertia::render('pariwisata/edit', [
             'item' => $pariwisata,
             'overlays' => $pariwisata->overlays,
             'metadata' => $pariwisata->metadata,
+            'preferenceOptions' => [
+                'activity' => $prefActivity,
+                'price' => $prefPrice,
+                'season' => $prefSeason,
+            ],
+            'selectedPreferenceIds' => $selected,
         ]);
     }
 
@@ -248,12 +263,27 @@ class PariwisataController extends Controller
             'facilities' => 'nullable|array',
             'facilities.*' => 'string|max:100',
             'accessibility' => 'nullable|in:wheelchair_friendly,child_friendly,elderly_friendly,all_accessible',
+            // Preference IDs (optional multi-select)
+            'activity_preference_ids' => 'nullable|array',
+            'activity_preference_ids.*' => 'integer',
+            'price_preference_ids' => 'nullable|array',
+            'price_preference_ids.*' => 'integer',
+            'season_preference_ids' => 'nullable|array',
+            'season_preference_ids.*' => 'integer',
         ]);
 
         $pariwisata->metadata()->updateOrCreate(
             ['pariwisata_id' => $pariwisata->id],
             $validated
         );
+
+        // Sync preference values pivots if provided
+        $prefIds = collect($request->input('activity_preference_ids', []))
+            ->merge($request->input('price_preference_ids', []))
+            ->merge($request->input('season_preference_ids', []))
+            ->filter()->unique()->values()->all();
+        // Sync to match exactly with selected list (including detach when empty)
+        $pariwisata->preferenceValues()->sync($prefIds);
 
         return redirect()->route('pariwisata.edit', $pariwisata->id)->with('success', 'Metadata updated');
     }

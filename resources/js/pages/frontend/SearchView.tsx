@@ -143,14 +143,29 @@ export default function SearchView({
     const safeStorage = typeof window !== 'undefined' ? window.localStorage : undefined;
     
     // Load personalization preferences
-    const [activityLevel, setActivityLevel] = useState<string>(() => {
-        try { return safeStorage?.getItem('jp_activity_level') || ''; } catch { return ''; }
+    const [activityLevels, setActivityLevels] = useState<string[]>(() => {
+        try {
+            const multi = safeStorage?.getItem('jp_activity_levels');
+            if (multi) return JSON.parse(multi);
+            const single = safeStorage?.getItem('jp_activity_level');
+            return single ? [single] : [];
+        } catch { return []; }
     });
-    const [priceRange, setPriceRange] = useState<string>(() => {
-        try { return safeStorage?.getItem('jp_price_range') || ''; } catch { return ''; }
+    const [priceRanges, setPriceRanges] = useState<string[]>(() => {
+        try {
+            const multi = safeStorage?.getItem('jp_price_ranges');
+            if (multi) return JSON.parse(multi);
+            const single = safeStorage?.getItem('jp_price_range');
+            return single ? [single] : [];
+        } catch { return []; }
     });
-    const [bestSeason, setBestSeason] = useState<string>(() => {
-        try { return safeStorage?.getItem('jp_best_season') || ''; } catch { return ''; }
+    const [bestSeasons, setBestSeasons] = useState<string[]>(() => {
+        try {
+            const multi = safeStorage?.getItem('jp_best_seasons');
+            if (multi) return JSON.parse(multi);
+            const single = safeStorage?.getItem('jp_best_season');
+            return single ? [single] : [];
+        } catch { return []; }
     });
     
     const [prefLabels, setPrefLabels] = useState<string[]>(() => {
@@ -182,25 +197,25 @@ export default function SearchView({
     const sortedResults = useMemo(() => {
         return initialResults.map(result => {
             const score = calculatePersonalizationScore(result.metadata || {}, {
-                activityLevel,
-                priceRange,
-                bestSeason,
+                activityLevel: activityLevels,
+                priceRange: priceRanges,
+                bestSeason: bestSeasons,
             });
             return { ...result, personalizationScore: score };
         }).sort((a, b) => b.personalizationScore - a.personalizationScore);
-    }, [initialResults, activityLevel, priceRange, bestSeason]);
+    }, [initialResults, activityLevels, priceRanges, bestSeasons]);
     
     // Calculate scores for recommendations too
     const sortedRecommendations = useMemo(() => {
         return recommendations.map(item => {
             const score = calculatePersonalizationScore(item.metadata || {}, {
-                activityLevel,
-                priceRange,
-                bestSeason,
+                activityLevel: activityLevels,
+                priceRange: priceRanges,
+                bestSeason: bestSeasons,
             });
             return { ...item, personalizationScore: score };
         }).sort((a, b) => b.personalizationScore - a.personalizationScore);
-    }, [recommendations, activityLevel, priceRange, bestSeason]);
+    }, [recommendations, activityLevels, priceRanges, bestSeasons]);
     
     const hasSearched = initialQuery !== '' || (initialFilters.labels && initialFilters.labels.length > 0);
     const destinations = sortedResults.filter(item => item.type === 'destination');

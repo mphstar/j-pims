@@ -29,4 +29,9 @@ class Pariwisata extends Model
     {
         return $this->hasOne(PariwisataMetadata::class);
     }
+    
+        public function preferenceValues()
+        {
+            return $this->belongsToMany(\App\Models\PreferenceValue::class, 'pariwisata_preference_values');
+        }
 }

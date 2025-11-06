@@ -68,14 +68,29 @@ export default function ProductView({ destination, product, products }: Props) {
 
     // Personalization state (read from localStorage)
     const safeStorage = typeof window !== 'undefined' ? window.localStorage : undefined;
-    const [activityLevel, setActivityLevel] = useState<string>(() => {
-        try { return safeStorage?.getItem('jp_activity_level') || ''; } catch { return ''; }
+    const [activityLevels, setActivityLevels] = useState<string[]>(() => {
+        try {
+            const multi = safeStorage?.getItem('jp_activity_levels');
+            if (multi) return JSON.parse(multi);
+            const single = safeStorage?.getItem('jp_activity_level');
+            return single ? [single] : [];
+        } catch { return []; }
     });
-    const [priceRange, setPriceRange] = useState<string>(() => {
-        try { return safeStorage?.getItem('jp_price_range') || ''; } catch { return ''; }
+    const [priceRanges, setPriceRanges] = useState<string[]>(() => {
+        try {
+            const multi = safeStorage?.getItem('jp_price_ranges');
+            if (multi) return JSON.parse(multi);
+            const single = safeStorage?.getItem('jp_price_range');
+            return single ? [single] : [];
+        } catch { return []; }
     });
-    const [bestSeason, setBestSeason] = useState<string>(() => {
-        try { return safeStorage?.getItem('jp_best_season') || ''; } catch { return ''; }
+    const [bestSeasons, setBestSeasons] = useState<string[]>(() => {
+        try {
+            const multi = safeStorage?.getItem('jp_best_seasons');
+            if (multi) return JSON.parse(multi);
+            const single = safeStorage?.getItem('jp_best_season');
+            return single ? [single] : [];
+        } catch { return []; }
     });
     const [reducedMotion, setReducedMotion] = useState<boolean>(() => {
         try { return (safeStorage?.getItem('jp_motion') || 'high') === 'reduced'; } catch { return false; }
@@ -108,15 +123,15 @@ export default function ProductView({ destination, product, products }: Props) {
         // Calculate personalization score based on metadata
         const metadata = p.metadata || destination.metadata;
         const personalizationScore = calculatePersonalizationScore(metadata, {
-            activityLevel,
-            priceRange,
-            bestSeason,
+            activityLevel: activityLevels,
+            priceRange: priceRanges,
+            bestSeason: bestSeasons,
         });
         const badge = getPersonalizationBadge(personalizationScore);
         const detailBadges = getPersonalizationDetails(metadata, {
-            activityLevel,
-            priceRange,
-            bestSeason,
+            activityLevel: activityLevels,
+            priceRange: priceRanges,
+            bestSeason: bestSeasons,
         });
 
         return {
@@ -148,7 +163,7 @@ export default function ProductView({ destination, product, products }: Props) {
                     )}
 
                     {/* Detail badges dan badge cocok/sangat cocok */}
-                    {/* {(badge || detailBadges.length > 0) && (
+                    {(badge || detailBadges.length > 0) && (
                         <div className={"flex gap-1.5 md:gap-2 flex-wrap " + (alignVal === 'right' ? 'justify-end' : '')}>
                             {badge && (
                                 <span className={`inline-flex items-center gap-1 md:gap-1.5 px-2.5 md:px-3 py-0.5 md:py-1 rounded-full text-[10px] md:text-xs font-semibold text-white ${badge.color}`}>
@@ -161,7 +176,7 @@ export default function ProductView({ destination, product, products }: Props) {
                                 </span>
                             ))}
                         </div>
-                    )} */}
+                    )}
                     <p className="text-white/90">{p.content || destination.content || ''}</p>
 
                     {/* Action Buttons Row - Detail & CTA */}
@@ -200,7 +215,7 @@ export default function ProductView({ destination, product, products }: Props) {
             personalizationScore,
             metadata,
         } as SectionData & { personalizationScore: number; metadata?: MetadataType };
-    }), [prods, destination, activityLevel, priceRange, bestSeason]);
+    }), [prods, destination, activityLevels, priceRanges, bestSeasons]);
 
     const scrollToIndex = (idx: number, opts?: { overshoot?: boolean; behavior?: ScrollBehavior }) => {
         if (isStabilizingRef.current && opts?.behavior !== 'auto') return;

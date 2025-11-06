@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\PariwisataController;
 use App\Http\Controllers\Admin\PariwisataProductController;
 use App\Http\Controllers\Admin\SettingController;
+use App\Http\Controllers\Admin\PreferenceValueController;
 use App\Http\Controllers\Admin\TahunAkademikController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Api\PariwisataApiController;
@@ -97,6 +98,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::prefix('settings')->group(function () {
         Route::post('update', [SettingController::class, 'update'])->name('settings.update');
         Route::get('/', [SettingController::class, 'getSettings'])->name('settings.get');
+    });
+
+    // Preference Values (Admin)
+    Route::prefix('preferences')->group(function () {
+        Route::get('/', [PreferenceValueController::class, 'index'])->name('preferences.index');
+        Route::get('create', [PreferenceValueController::class, 'create'])->name('preferences.create');
+        Route::post('store', [PreferenceValueController::class, 'store'])->name('preferences.store');
+        Route::get('edit/{preference}', [PreferenceValueController::class, 'edit'])->name('preferences.edit');
+        Route::post('update/{preference}', [PreferenceValueController::class, 'update'])->name('preferences.update');
+        Route::post('delete/{preference}', [PreferenceValueController::class, 'destroy'])->name('preferences.destroy');
     });
 });
 

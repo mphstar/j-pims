@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Pariwisata;
 use App\Models\PariwisataOverlays;
 use App\Models\PariwisataProduct;
+use App\Models\PreferenceValue;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
@@ -98,13 +99,27 @@ class PariwisataProductController extends Controller
 
     public function edit(PariwisataProduct $product)
     {
-        $product->load(['overlays', 'pariwisata:id,title', 'metadata']);
+        $product->load(['overlays', 'pariwisata:id,title', 'metadata', 'preferenceValues']);
         $destinations = Pariwisata::select('id','title','slug')->orderBy('title')->get();
+        $prefActivity = PreferenceValue::where('type','activity')->where('active',true)->orderBy('sort')->get(['id','key','label']);
+        $prefPrice = PreferenceValue::where('type','price')->where('active',true)->orderBy('sort')->get(['id','key','label']);
+        $prefSeason = PreferenceValue::where('type','season')->where('active',true)->orderBy('sort')->get(['id','key','label']);
+        $selected = [
+            'activity' => $product->preferenceValues->where('type','activity')->pluck('id')->values(),
+            'price' => $product->preferenceValues->where('type','price')->pluck('id')->values(),
+            'season' => $product->preferenceValues->where('type','season')->pluck('id')->values(),
+        ];
         return Inertia::render('product/edit', [
             'item' => $product,
             'destinations' => $destinations,
             'overlays' => $product->overlays,
             'metadata' => $product->metadata,
+            'preferenceOptions' => [
+                'activity' => $prefActivity,
+                'price' => $prefPrice,
+                'season' => $prefSeason,
+            ],
+            'selectedPreferenceIds' => $selected,
         ]);
     }
 
@@ -252,12 +267,26 @@ class PariwisataProductController extends Controller
             'requirements' => 'nullable|array',
             'requirements.*' => 'string|max:100',
             'group_size' => 'nullable|array',
+            // Preference IDs
+            'activity_preference_ids' => 'nullable|array',
+            'activity_preference_ids.*' => 'integer',
+            'price_preference_ids' => 'nullable|array',
+            'price_preference_ids.*' => 'integer',
+            'season_preference_ids' => 'nullable|array',
+            'season_preference_ids.*' => 'integer',
         ]);
 
         $product->metadata()->updateOrCreate(
             ['product_id' => $product->id],
             $validated
         );
+
+        // Sync preference values pivots if provided
+        $prefIds = collect($request->input('activity_preference_ids', []))
+            ->merge($request->input('price_preference_ids', []))
+            ->merge($request->input('season_preference_ids', []))
+            ->filter()->unique()->values()->all();
+        $product->preferenceValues()->sync($prefIds);
 
         return redirect()->route('product.edit', $product->id)->with('success', 'Metadata updated');
     }
