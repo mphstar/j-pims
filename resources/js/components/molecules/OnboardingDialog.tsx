@@ -40,13 +40,13 @@ export function OnboardingDialog({
 
   const activityLevels = (metadataOptions?.activity_levels && metadataOptions.activity_levels.length > 0)
     ? metadataOptions.activity_levels
-    : ['easy', 'moderate', 'challenging'];
+    : ['santai', 'sedang', 'aktif'];
   const priceRanges = (metadataOptions?.price_ranges && metadataOptions.price_ranges.length > 0)
     ? metadataOptions.price_ranges
-    : ['budget', 'moderate', 'expensive', 'luxury'];
+    : ['hemat', 'sedang', 'premium'];
   const bestSeasons = (metadataOptions?.best_seasons && metadataOptions.best_seasons.length > 0)
     ? metadataOptions.best_seasons
-    : ['Januari-April', 'Mei-Oktober', 'Sepanjang Tahun'];
+    : ['pagi', 'siang', 'sore', 'malam'];
 
   const totalSteps = 6;
   const progress = ((step + 1) / totalSteps) * 100;
@@ -89,38 +89,69 @@ export function OnboardingDialog({
   };
 
   const getActivityIcon = (level: string) => {
-    if (level === 'easy') return '😌';
-    if (level === 'moderate') return '🚶';
-    if (level === 'challenging') return '🏃';
+    if (level === 'santai') return '�';
+    if (level === 'sedang') return '🚶';
+    if (level === 'aktif') return '⛰️';
     return '🎯';
   };
 
   const getActivityLabel = (level: string) => {
-    if (level === 'easy') return 'Santai';
-    if (level === 'moderate') return 'Sedang';
-    if (level === 'challenging') return 'Menantang';
+    if (level === 'santai') return 'Santai';
+    if (level === 'sedang') return 'Sedang';
+    if (level === 'aktif') return 'Aktif';
     return level;
   };
 
+  const getActivitySubtitle = (level: string) => {
+    if (level === 'santai') return 'Aktivitas ringan, santai';
+    if (level === 'sedang') return 'Jalan santai, aktivitas moderat';
+    if (level === 'aktif') return 'Trekking, aktivitas intens';
+    return '';
+  };
+
   const getPriceIcon = (range: string) => {
-    if (range === 'budget') return '💰';
-    if (range === 'moderate') return '💵';
-    if (range === 'expensive') return '💎';
-    if (range === 'luxury') return '👑';
+    if (range === 'hemat') return '�';
+    if (range === 'sedang') return '�';
+    if (range === 'premium') return '�';
     return '💳';
   };
 
   const getPriceLabel = (range: string) => {
-    if (range === 'budget') return 'Hemat';
-    if (range === 'moderate') return 'Sedang';
-    if (range === 'expensive') return 'Premium';
-    if (range === 'luxury') return 'Mewah';
+    if (range === 'hemat') return 'Hemat';
+    if (range === 'sedang') return 'Sedang';
+    if (range === 'premium') return 'Premium';
     return range;
   };
 
+  const getPriceSubtitle = (range: string) => {
+    if (range === 'hemat') return 'Budget friendly';
+    if (range === 'sedang') return 'Mid-range';
+    if (range === 'premium') return 'High-end experience';
+    return '';
+  };
+
   const getSeasonIcon = (season: string) => {
-    if (season.includes('Sepanjang')) return '🌍';
+    if (season === 'pagi') return '🌅';
+    if (season === 'siang') return '🌤️';
+    if (season === 'sore') return '🌇';
+    if (season === 'malam') return '🌃';
     return '📅';
+  };
+
+  const getSeasonLabel = (season: string) => {
+    if (season === 'pagi') return 'Pagi';
+    if (season === 'siang') return 'Siang';
+    if (season === 'sore') return 'Sore';
+    if (season === 'malam') return 'Malam';
+    return season;
+  };
+
+  const getSeasonSubtitle = (season: string) => {
+    if (season === 'pagi') return '06:00 - 10:00';
+    if (season === 'siang') return '10:00 - 14:00';
+    if (season === 'sore') return '14:00 - 18:00';
+    if (season === 'malam') return '18:00 - 22:00';
+    return '';
   };
 
   const getLabelIcon = (label: string) => {
@@ -207,9 +238,7 @@ export function OnboardingDialog({
                         {getActivityLabel(level)}
                       </div>
                       <div className="text-white/50 text-sm">
-                        {level === 'easy' && 'Santai dan nyaman'}
-                        {level === 'moderate' && 'Seimbang'}
-                        {level === 'challenging' && 'Penuh petualangan'}
+                        {getActivitySubtitle(level)}
                       </div>
                     </button>
                   ))}
@@ -244,10 +273,7 @@ export function OnboardingDialog({
                         {getPriceLabel(range)}
                       </div>
                       <div className="text-white/50 text-sm">
-                        {range === 'budget' && 'Terjangkau untuk semua'}
-                        {range === 'moderate' && 'Kualitas dengan harga wajar'}
-                        {range === 'expensive' && 'Pengalaman premium'}
-                        {range === 'luxury' && 'Kemewahan tanpa batas'}
+                        {getPriceSubtitle(range)}
                       </div>
                     </button>
                   ))}
@@ -266,7 +292,7 @@ export function OnboardingDialog({
                   <p className="text-white/60">Pilih satu atau lebih waktu kunjungan favorit</p>
                 </div>
 
-                <div className="grid grid-cols-1 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {bestSeasons.map((season) => (
                     <button
                       key={season}
@@ -280,11 +306,9 @@ export function OnboardingDialog({
                       <div className="flex items-center gap-4">
                         <div className="text-4xl">{getSeasonIcon(season)}</div>
                         <div className="text-left flex-1">
-                          <div className="text-white font-semibold text-lg">{season}</div>
+                          <div className="text-white font-semibold text-lg">{getSeasonLabel(season)}</div>
                           <div className="text-white/50 text-sm">
-                            {season.includes('Sepanjang') && 'Fleksibel, bisa kapan saja'}
-                            {season.includes('Januari') && 'Cuaca sejuk dan segar'}
-                            {season.includes('Mei') && 'Cuaca cerah dan kering'}
+                            {getSeasonSubtitle(season)}
                           </div>
                         </div>
                       </div>

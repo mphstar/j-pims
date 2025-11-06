@@ -14,20 +14,6 @@ use Inertia\Inertia;
 
 class PariwisataProductController extends Controller
 {
-    private function deleteFileIfExists(?string $url): void
-    {
-        if (!$url) return;
-        $publicPath = public_path();
-        $parsed = parse_url($url, PHP_URL_PATH);
-        if (!$parsed) return;
-        $relative = ltrim($parsed, '/');
-        if (!str_starts_with($relative, 'uploads/pariwisata/') && !str_starts_with($relative, 'pariwisata/')) return;
-        $full = $publicPath . DIRECTORY_SEPARATOR . $relative;
-        if (is_file($full)) {
-            @unlink($full);
-        }
-    }
-
     public function index()
     {
         $data = PariwisataProduct::with('pariwisata:id,title,slug')->latest()->get();
@@ -50,10 +36,20 @@ class PariwisataProductController extends Controller
     public function create(Request $request)
     {
         $destinations = Pariwisata::select('id','title','slug')->orderBy('title')->get();
+        
+        $allActivityLevels = \App\Models\PreferenceActivityLevel::orderBy('title')->get(['id','icon','title','subtitle']);
+        $allPriceRanges = \App\Models\PreferencePriceRange::orderBy('title')->get(['id','icon','title','subtitle']);
+        $allVisitTimes = \App\Models\PreferenceVisitTime::orderBy('title')->get(['id','icon','title','subtitle']);
+        
         return Inertia::render('product/create', [
             'destinations' => $destinations,
-            'selectedPariwisataId' => $request->integer('pariwisata_id') ?: null,
-            'item' => null,
+            'selectedPariwisataId' => $request->query('pariwisata_id'),
+            'activityLevels' => $allActivityLevels,
+            'priceRanges' => $allPriceRanges,
+            'visitTimes' => $allVisitTimes,
+            'selectedActivityLevelIds' => [],
+            'selectedPriceRangeIds' => [],
+            'selectedVisitTimeIds' => [],
         ]);
     }
 
@@ -71,6 +67,12 @@ class PariwisataProductController extends Controller
             'cta_href' => 'nullable|string|max:255',
             'cta_label' => 'nullable|string|max:255',
             'align' => 'required|in:left,right',
+            'activity_level_ids' => 'nullable|array',
+            'activity_level_ids.*' => 'integer|exists:preference_activity_levels,id',
+            'price_range_ids' => 'nullable|array',
+            'price_range_ids.*' => 'integer|exists:preference_price_ranges,id',
+            'visit_time_ids' => 'nullable|array',
+            'visit_time_ids.*' => 'integer|exists:preference_visit_times,id',
         ]);
 
         if (empty($validated['slug'])) {
@@ -91,35 +93,52 @@ class PariwisataProductController extends Controller
             $file->move($dir, $filename);
             $validated['background_url'] = asset('uploads/pariwisata/products/'.$filename);
         }
-        unset($validated['background_image']);
+        
+        $activityLevelIds = $validated['activity_level_ids'] ?? [];
+        $priceRangeIds = $validated['price_range_ids'] ?? [];
+        $visitTimeIds = $validated['visit_time_ids'] ?? [];
+        
+        unset($validated['background_image'], $validated['activity_level_ids'], $validated['price_range_ids'], $validated['visit_time_ids']);
 
         $item = PariwisataProduct::create($validated);
-        return redirect()->route('product.edit', $item->id)->with('success', 'Product created. Silakan lanjut menambah overlay.');
+        
+        // Sync preferences
+        if (!empty($activityLevelIds)) {
+            $item->activityLevels()->sync($activityLevelIds);
+        }
+        if (!empty($priceRangeIds)) {
+            $item->priceRanges()->sync($priceRangeIds);
+        }
+        if (!empty($visitTimeIds)) {
+            $item->visitTimes()->sync($visitTimeIds);
+        }
+        
+        return redirect()->route('product.by-pariwisata', $validated['pariwisata_id'])->with('success', 'Product berhasil dibuat');
     }
 
     public function edit(PariwisataProduct $product)
     {
-        $product->load(['overlays', 'pariwisata:id,title', 'metadata', 'preferenceValues']);
+        $product->load(['overlays', 'pariwisata:id,title', 'activityLevels', 'priceRanges', 'visitTimes']);
         $destinations = Pariwisata::select('id','title','slug')->orderBy('title')->get();
-        $prefActivity = PreferenceValue::where('type','activity')->where('active',true)->orderBy('sort')->get(['id','key','label']);
-        $prefPrice = PreferenceValue::where('type','price')->where('active',true)->orderBy('sort')->get(['id','key','label']);
-        $prefSeason = PreferenceValue::where('type','season')->where('active',true)->orderBy('sort')->get(['id','key','label']);
-        $selected = [
-            'activity' => $product->preferenceValues->where('type','activity')->pluck('id')->values(),
-            'price' => $product->preferenceValues->where('type','price')->pluck('id')->values(),
-            'season' => $product->preferenceValues->where('type','season')->pluck('id')->values(),
-        ];
+        
+        $allActivityLevels = \App\Models\PreferenceActivityLevel::orderBy('title')->get(['id','icon','title','subtitle']);
+        $allPriceRanges = \App\Models\PreferencePriceRange::orderBy('title')->get(['id','icon','title','subtitle']);
+        $allVisitTimes = \App\Models\PreferenceVisitTime::orderBy('title')->get(['id','icon','title','subtitle']);
+        
+        $selectedActivityLevelIds = $product->activityLevels->pluck('id')->toArray();
+        $selectedPriceRangeIds = $product->priceRanges->pluck('id')->toArray();
+        $selectedVisitTimeIds = $product->visitTimes->pluck('id')->toArray();
+        
         return Inertia::render('product/edit', [
             'item' => $product,
             'destinations' => $destinations,
             'overlays' => $product->overlays,
-            'metadata' => $product->metadata,
-            'preferenceOptions' => [
-                'activity' => $prefActivity,
-                'price' => $prefPrice,
-                'season' => $prefSeason,
-            ],
-            'selectedPreferenceIds' => $selected,
+            'activityLevels' => $allActivityLevels,
+            'priceRanges' => $allPriceRanges,
+            'visitTimes' => $allVisitTimes,
+            'selectedActivityLevelIds' => $selectedActivityLevelIds,
+            'selectedPriceRangeIds' => $selectedPriceRangeIds,
+            'selectedVisitTimeIds' => $selectedVisitTimeIds,
         ]);
     }
 
@@ -137,6 +156,12 @@ class PariwisataProductController extends Controller
             'cta_href' => 'nullable|string|max:255',
             'cta_label' => 'nullable|string|max:255',
             'align' => 'required|in:left,right',
+            'activity_level_ids' => 'nullable|array',
+            'activity_level_ids.*' => 'integer|exists:preference_activity_levels,id',
+            'price_range_ids' => 'nullable|array',
+            'price_range_ids.*' => 'integer|exists:preference_price_ranges,id',
+            'visit_time_ids' => 'nullable|array',
+            'visit_time_ids.*' => 'integer|exists:preference_visit_times,id',
         ]);
 
         if ($request->hasFile('background_image')) {
@@ -148,14 +173,27 @@ class PariwisataProductController extends Controller
             $file->move($dir, $filename);
             $validated['background_url'] = asset('uploads/pariwisata/products/'.$filename);
         }
-        unset($validated['background_image']);
+        
+        $activityLevelIds = $validated['activity_level_ids'] ?? [];
+        $priceRangeIds = $validated['price_range_ids'] ?? [];
+        $visitTimeIds = $validated['visit_time_ids'] ?? [];
+        
+        unset($validated['background_image'], $validated['activity_level_ids'], $validated['price_range_ids'], $validated['visit_time_ids']);
 
         $product->update($validated);
+        
+        // Sync preferences
+        $product->activityLevels()->sync($activityLevelIds);
+        $product->priceRanges()->sync($priceRangeIds);
+        $product->visitTimes()->sync($visitTimeIds);
+        
         return redirect()->route('product.by-pariwisata', $product->pariwisata_id)->with('success', 'Product updated');
     }
 
     public function destroy(PariwisataProduct $product)
     {
+        $pariwisataId = $product->pariwisata_id;
+        
         // Delete background file
         $this->deleteFileIfExists($product->background_url);
         // Delete overlay files
@@ -164,7 +202,8 @@ class PariwisataProductController extends Controller
         }
         PariwisataOverlays::where('product_id', $product->id)->delete();
         $product->delete();
-        return redirect()->route('product.index')->with('success', 'Product & files deleted');
+        
+        return redirect()->route('product.by-pariwisata', $pariwisataId)->with('success', 'Product berhasil dihapus');
     }
 
     public function deleteMultiple(Request $request)
@@ -175,6 +214,10 @@ class PariwisataProductController extends Controller
         ]);
         $ids = collect($data['data'])->pluck('id')->unique();
         $items = PariwisataProduct::with('overlays')->whereIn('id', $ids)->get();
+        
+        // Get first pariwisata_id for redirect (assuming all from same pariwisata in typical use case)
+        $pariwisataId = $items->first()->pariwisata_id ?? null;
+        
         foreach ($items as $item) {
             $this->deleteFileIfExists($item->background_url);
             foreach ($item->overlays as $ov) {
@@ -183,7 +226,13 @@ class PariwisataProductController extends Controller
             PariwisataOverlays::where('product_id', $item->id)->delete();
             $item->delete();
         }
-        return redirect()->route('product.index')->with('success', 'Selected products deleted');
+        
+        // Redirect to pariwisata product list if we have pariwisata_id, otherwise to general product index
+        if ($pariwisataId) {
+            return redirect()->route('product.by-pariwisata', $pariwisataId)->with('success', 'Products berhasil dihapus');
+        }
+        
+        return redirect()->route('product.index')->with('success', 'Products berhasil dihapus');
     }
 
     public function uploadBackground(Request $request)
@@ -226,7 +275,7 @@ class PariwisataProductController extends Controller
             'width' => $data['width'] ?? null,
             'height' => $data['height'] ?? null,
         ]);
-        return redirect()->route('product.edit', $product->id)->with('success', 'Overlay created');
+        return redirect()->route('product.by-pariwisata', $product->pariwisata_id)->with('success', 'Overlay berhasil dibuat');
     }
 
     public function updateOverlay(Request $request, PariwisataOverlays $overlay)
@@ -239,55 +288,26 @@ class PariwisataProductController extends Controller
             'height' => 'nullable|integer|min:1'
         ]);
         $overlay->update($data);
-        return redirect()->route('product.edit', $overlay->product_id)->with('success', 'Overlay updated');
+        $product = $overlay->product;
+        return redirect()->route('product.by-pariwisata', $product->pariwisata_id)->with('success', 'Overlay berhasil diupdate');
     }
 
     public function deleteOverlay(PariwisataOverlays $overlay)
     {
-        $pid = $overlay->product_id;
+        $product = $overlay->product;
+        $pariwisataId = $product->pariwisata_id;
         $this->deleteFileIfExists($overlay->overlay_url);
         $overlay->delete();
-        return redirect()->route('product.edit', $pid)->with('success', 'Overlay deleted');
+        return redirect()->route('product.by-pariwisata', $pariwisataId)->with('success', 'Overlay berhasil dihapus');
     }
 
-    // Metadata CRUD
-    public function storeMetadata(Request $request, PariwisataProduct $product)
+    private function deleteFileIfExists(?string $url): void
     {
-        $validated = $request->validate([
-            'activity_level' => 'nullable|in:easy,moderate,challenging',
-            'price_range' => 'nullable|in:budget,moderate,expensive,luxury',
-            'best_season' => 'nullable|string|max:255',
-            'tags' => 'nullable|array',
-            'tags.*' => 'string|max:100',
-            'duration_hours' => 'nullable|numeric|min:0|max:999.99',
-            'target_age_group' => 'nullable|array',
-            'target_age_group.*' => 'string|max:50',
-            'includes' => 'nullable|array',
-            'includes.*' => 'string|max:100',
-            'requirements' => 'nullable|array',
-            'requirements.*' => 'string|max:100',
-            'group_size' => 'nullable|array',
-            // Preference IDs
-            'activity_preference_ids' => 'nullable|array',
-            'activity_preference_ids.*' => 'integer',
-            'price_preference_ids' => 'nullable|array',
-            'price_preference_ids.*' => 'integer',
-            'season_preference_ids' => 'nullable|array',
-            'season_preference_ids.*' => 'integer',
-        ]);
-
-        $product->metadata()->updateOrCreate(
-            ['product_id' => $product->id],
-            $validated
-        );
-
-        // Sync preference values pivots if provided
-        $prefIds = collect($request->input('activity_preference_ids', []))
-            ->merge($request->input('price_preference_ids', []))
-            ->merge($request->input('season_preference_ids', []))
-            ->filter()->unique()->values()->all();
-        $product->preferenceValues()->sync($prefIds);
-
-        return redirect()->route('product.edit', $product->id)->with('success', 'Metadata updated');
+        if (!$url) return;
+        $parsed = parse_url($url);
+        $path = public_path($parsed['path'] ?? '');
+        if (file_exists($path)) {
+            @unlink($path);
+        }
     }
 }

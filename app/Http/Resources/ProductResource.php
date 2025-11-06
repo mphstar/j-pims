@@ -19,6 +19,45 @@ class ProductResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        // Map preference relationships to metadata format for frontend
+        $metadata = (object)[];
+        
+        // Activity Levels
+        if ($this->relationLoaded('activityLevels')) {
+            $metadata->activity_levels = $this->activityLevels->map(function($al) {
+                return [
+                    'id' => $al->id,
+                    'icon' => $al->icon,
+                    'title' => $al->title,
+                    'key' => \Illuminate\Support\Str::slug($al->title),
+                ];
+            })->toArray();
+        }
+        
+        // Price Ranges
+        if ($this->relationLoaded('priceRanges')) {
+            $metadata->price_ranges = $this->priceRanges->map(function($pr) {
+                return [
+                    'id' => $pr->id,
+                    'icon' => $pr->icon,
+                    'title' => $pr->title,
+                    'key' => \Illuminate\Support\Str::slug($pr->title),
+                ];
+            })->toArray();
+        }
+        
+        // Visit Times
+        if ($this->relationLoaded('visitTimes')) {
+            $metadata->visit_times = $this->visitTimes->map(function($vt) {
+                return [
+                    'id' => $vt->id,
+                    'icon' => $vt->icon,
+                    'title' => $vt->title,
+                    'key' => \Illuminate\Support\Str::slug($vt->title),
+                ];
+            })->toArray();
+        }
+        
         return [
             'id' => $this->id,
             'title' => $this->title,
@@ -33,6 +72,7 @@ class ProductResource extends JsonResource
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
             'overlays' => OverlayResource::collection($this->whenLoaded('overlays', $this->overlays)),
+            'metadata' => $metadata,
         ];
     }
 }

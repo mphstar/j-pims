@@ -10,10 +10,16 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 export default function CreatePariwisata() {
+  const { destinationTypes } = usePage().props as any;
+  
   return (
     <AppLayout breadcrumbs={breadcrumbs}>
       <Head title='Tambah Pariwisata' />
-      <PariwisataFormBase mode='create' />
+      <PariwisataFormBase 
+        mode='create' 
+        destinationTypes={destinationTypes || []}
+        selectedDestinationTypeIds={[]}
+      />
     </AppLayout>
   );
 }

@@ -24,7 +24,11 @@ class DatabaseSeeder extends Seeder
         $this->call([
             SettingSeeder::class,
             PariwisataSeeder::class,
-            MetadataSeeder::class,
+            CeritaSeeder::class,
+            PreferenceActivityLevelSeeder::class,
+            PreferencePriceRangeSeeder::class,
+            PreferenceVisitTimeSeeder::class,
+            PreferenceDestinationTypeSeeder::class,
         ]);
     }
 }

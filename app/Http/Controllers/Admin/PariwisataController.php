@@ -52,6 +52,8 @@ class PariwisataController extends Controller
             'cta_href' => 'nullable|string|max:255',
             'cta_label' => 'nullable|string|max:255',
             'align' => 'required|in:left,right',
+            'destination_type_ids' => 'nullable|array',
+            'destination_type_ids.*' => 'integer|exists:preference_destination_types,id',
         ]);
 
         if (empty($validated['slug'])) {
@@ -75,8 +77,15 @@ class PariwisataController extends Controller
             $validated['background_url'] = asset('uploads/pariwisata/backgrounds/'.$filename);
         }
 
-        unset($validated['background_image']);
+        $destinationTypeIds = $validated['destination_type_ids'] ?? [];
+        unset($validated['background_image'], $validated['destination_type_ids']);
+        
         $item = Pariwisata::create($validated);
+        
+        // Sync destination types
+        if (!empty($destinationTypeIds)) {
+            $item->destinationTypes()->sync($destinationTypeIds);
+        }
 
         return redirect()->route('pariwisata.edit', $item->id)->with('success', 'Pariwisata created. Silakan lanjut menambah overlay.');
     }
@@ -94,6 +103,8 @@ class PariwisataController extends Controller
             'cta_href' => 'nullable|string|max:255',
             'cta_label' => 'nullable|string|max:255',
             'align' => 'required|in:left,right',
+            'destination_type_ids' => 'nullable|array',
+            'destination_type_ids.*' => 'integer|exists:preference_destination_types,id',
         ]);
 
         if ($request->hasFile('background_image')) {
@@ -105,41 +116,40 @@ class PariwisataController extends Controller
             $file->move($dir, $filename);
             $validated['background_url'] = asset('uploads/pariwisata/backgrounds/'.$filename);
         }
-        unset($validated['background_image']);
+        
+        $destinationTypeIds = $validated['destination_type_ids'] ?? [];
+        unset($validated['background_image'], $validated['destination_type_ids']);
 
         $pariwisata->update($validated);
+        
+        // Sync destination types
+        $pariwisata->destinationTypes()->sync($destinationTypeIds);
 
         return redirect()->route('pariwisata.index')->with('success', 'Pariwisata updated');
     }
 
     public function create()
     {
+        $allDestinationTypes = \App\Models\PreferenceDestinationType::orderBy('title')->get(['id','icon','title']);
+        
         return Inertia::render('pariwisata/create', [
             'item' => null,
+            'destinationTypes' => $allDestinationTypes,
+            'selectedDestinationTypeIds' => [],
         ]);
     }
 
     public function edit(Pariwisata $pariwisata)
     {
-        $pariwisata->load(['overlays', 'metadata', 'preferenceValues']);
-        $prefActivity = PreferenceValue::where('type','activity')->where('active',true)->orderBy('sort')->get(['id','key','label']);
-        $prefPrice = PreferenceValue::where('type','price')->where('active',true)->orderBy('sort')->get(['id','key','label']);
-        $prefSeason = PreferenceValue::where('type','season')->where('active',true)->orderBy('sort')->get(['id','key','label']);
-        $selected = [
-            'activity' => $pariwisata->preferenceValues->where('type','activity')->pluck('id')->values(),
-            'price' => $pariwisata->preferenceValues->where('type','price')->pluck('id')->values(),
-            'season' => $pariwisata->preferenceValues->where('type','season')->pluck('id')->values(),
-        ];
+        $pariwisata->load(['overlays', 'destinationTypes']);
+        $allDestinationTypes = \App\Models\PreferenceDestinationType::orderBy('title')->get(['id','icon','title']);
+        $selectedDestinationTypeIds = $pariwisata->destinationTypes->pluck('id')->values();
+        
         return Inertia::render('pariwisata/edit', [
             'item' => $pariwisata,
             'overlays' => $pariwisata->overlays,
-            'metadata' => $pariwisata->metadata,
-            'preferenceOptions' => [
-                'activity' => $prefActivity,
-                'price' => $prefPrice,
-                'season' => $prefSeason,
-            ],
-            'selectedPreferenceIds' => $selected,
+            'destinationTypes' => $allDestinationTypes,
+            'selectedDestinationTypeIds' => $selectedDestinationTypeIds,
         ]);
     }
 
@@ -246,45 +256,5 @@ class PariwisataController extends Controller
             $item->delete();
         }
         return redirect()->route('pariwisata.index')->with('success', 'Selected pariwisata deleted');
-    }
-
-    // Metadata CRUD
-    public function storeMetadata(Request $request, Pariwisata $pariwisata)
-    {
-        $validated = $request->validate([
-            'activity_level' => 'nullable|in:easy,moderate,challenging',
-            'price_range' => 'nullable|in:budget,moderate,expensive,luxury',
-            'best_season' => 'nullable|string|max:255',
-            'tags' => 'nullable|array',
-            'tags.*' => 'string|max:100',
-            'duration_hours' => 'nullable|numeric|min:0|max:999.99',
-            'target_age_group' => 'nullable|array',
-            'target_age_group.*' => 'string|max:50',
-            'facilities' => 'nullable|array',
-            'facilities.*' => 'string|max:100',
-            'accessibility' => 'nullable|in:wheelchair_friendly,child_friendly,elderly_friendly,all_accessible',
-            // Preference IDs (optional multi-select)
-            'activity_preference_ids' => 'nullable|array',
-            'activity_preference_ids.*' => 'integer',
-            'price_preference_ids' => 'nullable|array',
-            'price_preference_ids.*' => 'integer',
-            'season_preference_ids' => 'nullable|array',
-            'season_preference_ids.*' => 'integer',
-        ]);
-
-        $pariwisata->metadata()->updateOrCreate(
-            ['pariwisata_id' => $pariwisata->id],
-            $validated
-        );
-
-        // Sync preference values pivots if provided
-        $prefIds = collect($request->input('activity_preference_ids', []))
-            ->merge($request->input('price_preference_ids', []))
-            ->merge($request->input('season_preference_ids', []))
-            ->filter()->unique()->values()->all();
-        // Sync to match exactly with selected list (including detach when empty)
-        $pariwisata->preferenceValues()->sync($prefIds);
-
-        return redirect()->route('pariwisata.edit', $pariwisata->id)->with('success', 'Metadata updated');
     }
 }

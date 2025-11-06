@@ -30,8 +30,13 @@ class Pariwisata extends Model
         return $this->hasOne(PariwisataMetadata::class);
     }
     
-        public function preferenceValues()
-        {
-            return $this->belongsToMany(\App\Models\PreferenceValue::class, 'pariwisata_preference_values');
-        }
+    public function preferenceValues()
+    {
+        return $this->belongsToMany(\App\Models\PreferenceValue::class, 'pariwisata_preference_values');
+    }
+
+    public function destinationTypes()
+    {
+        return $this->belongsToMany(PreferenceDestinationType::class, 'pariwisata_preference_destination_types', 'pariwisata_id', 'preference_destination_type_id');
+    }
 }

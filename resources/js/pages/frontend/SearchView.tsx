@@ -5,9 +5,10 @@ import { CursorBullet } from '@/components/organisms/CursorBullet';
 import { calculatePersonalizationScore, getPersonalizationBadge } from '@/utils/personalization';
 
 interface MetadataType {
-    activity_level?: string;
-    price_range?: string;
-    best_season?: string;
+    activity_levels?: string[];
+    price_ranges?: string[];
+    best_seasons?: string[];
+    destination_types?: string[];
     tags?: string[];
     includes?: string[];
     requirements?: string[];
@@ -29,14 +30,20 @@ interface SearchResult {
     metadata?: MetadataType;
 }
 
+interface DestinationType {
+    id: number;
+    icon: string;
+    title: string;
+}
+
 interface Props {
     query: string;
     filters: {
-        labels?: string[];
+        destination_type_ids?: number[];
     };
     results: SearchResult[];
     recommendations: SearchResult[];
-    allLabels: string[];
+    allDestinationTypes: DestinationType[];
 }
 
 // Result Card Component
@@ -103,9 +110,19 @@ function ResultCard({ result, personalizationScore }: { result: SearchResult; pe
                 {/* Metadata badges */}
                 {result.metadata && (
                     <div className="flex flex-wrap gap-1.5 mb-3">
-                        {result.metadata.price_range && (
+                        {result.metadata.activity_levels && result.metadata.activity_levels.length > 0 && (
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-white/10 rounded-full text-[10px] text-white/70">
-                                💰 {result.metadata.price_range}
+                                🏃 {result.metadata.activity_levels.join(', ')}
+                            </span>
+                        )}
+                        {result.metadata.price_ranges && result.metadata.price_ranges.length > 0 && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-white/10 rounded-full text-[10px] text-white/70">
+                                💰 {result.metadata.price_ranges.join(', ')}
+                            </span>
+                        )}
+                        {result.metadata.best_seasons && result.metadata.best_seasons.length > 0 && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-white/10 rounded-full text-[10px] text-white/70">
+                                📅 {result.metadata.best_seasons.join(', ')}
                             </span>
                         )}
                         {result.metadata.duration_hours && (
@@ -135,7 +152,7 @@ export default function SearchView({
     filters: initialFilters, 
     results: initialResults,
     recommendations,
-    allLabels,
+    allDestinationTypes,
 }: Props) {
     const [query, setQuery] = useState(initialQuery || '');
     const [showFilters, setShowFilters] = useState(false);
@@ -168,14 +185,14 @@ export default function SearchView({
         } catch { return []; }
     });
     
-    const [prefLabels, setPrefLabels] = useState<string[]>(() => {
+    const [selectedDestinationTypes, setSelectedDestinationTypes] = useState<number[]>(() => {
         try {
             // Check if there are filters from URL first
-            if (initialFilters.labels && initialFilters.labels.length > 0) {
-                return initialFilters.labels;
+            if (initialFilters.destination_type_ids && initialFilters.destination_type_ids.length > 0) {
+                return initialFilters.destination_type_ids;
             }
             // Otherwise load from localStorage
-            const stored = safeStorage?.getItem('jp_pref_labels');
+            const stored = safeStorage?.getItem('jp_selected_destination_types');
             return stored ? JSON.parse(stored) : [];
         } catch {
             return [];
@@ -184,14 +201,14 @@ export default function SearchView({
     
     useEffect(() => {
         if (safeStorage) {
-            if (prefLabels.length > 0) {
-                safeStorage.setItem('jp_pref_labels', JSON.stringify(prefLabels));
+            if (selectedDestinationTypes.length > 0) {
+                safeStorage.setItem('jp_selected_destination_types', JSON.stringify(selectedDestinationTypes));
             } else {
                 // Remove from localStorage if empty
-                safeStorage.removeItem('jp_pref_labels');
+                safeStorage.removeItem('jp_selected_destination_types');
             }
         }
-    }, [prefLabels, safeStorage]);
+    }, [selectedDestinationTypes, safeStorage]);
     
     // Calculate personalization scores and sort results
     const sortedResults = useMemo(() => {
@@ -217,7 +234,7 @@ export default function SearchView({
         }).sort((a, b) => b.personalizationScore - a.personalizationScore);
     }, [recommendations, activityLevels, priceRanges, bestSeasons]);
     
-    const hasSearched = initialQuery !== '' || (initialFilters.labels && initialFilters.labels.length > 0);
+    const hasSearched = initialQuery !== '' || (initialFilters.destination_type_ids && initialFilters.destination_type_ids.length > 0);
     const destinations = sortedResults.filter(item => item.type === 'destination');
     const products = sortedResults.filter(item => item.type === 'product');
 
@@ -225,9 +242,9 @@ export default function SearchView({
         e.preventDefault();
         const searchFilters: Record<string, any> = {};
         
-        // Only add labels filter if there are selected categories
-        if (prefLabels.length > 0) {
-            searchFilters.labels = prefLabels;
+        // Only add destination types filter if there are selected types
+        if (selectedDestinationTypes.length > 0) {
+            searchFilters.destination_type_ids = selectedDestinationTypes;
         }
         
         router.get(route('search'), { q: query, ...searchFilters }, {
@@ -236,11 +253,11 @@ export default function SearchView({
     };
 
     const clearFilters = () => {
-        setPrefLabels([]);
+        setSelectedDestinationTypes([]);
         
         // Also remove from localStorage
         if (safeStorage) {
-            safeStorage.removeItem('jp_pref_labels');
+            safeStorage.removeItem('jp_selected_destination_types');
         }
         
         setShowFilters(false);
@@ -249,20 +266,20 @@ export default function SearchView({
         });
     };
     
-    const toggleLabel = (label: string) => {
-        setPrefLabels(prev => 
-            prev.includes(label) 
-                ? prev.filter(l => l !== label) 
-                : [...prev, label]
+    const toggleDestinationType = (typeId: number) => {
+        setSelectedDestinationTypes(prev => 
+            prev.includes(typeId) 
+                ? prev.filter(id => id !== typeId) 
+                : [...prev, typeId]
         );
     };
 
     const handlePersonalizationChange = () => {
         const searchFilters: Record<string, any> = {};
         
-        // Only add labels filter if there are selected categories
-        if (prefLabels.length > 0) {
-            searchFilters.labels = prefLabels;
+        // Only add destination types filter if there are selected types
+        if (selectedDestinationTypes.length > 0) {
+            searchFilters.destination_type_ids = selectedDestinationTypes;
         }
         
         setShowFilters(false);
@@ -380,25 +397,26 @@ export default function SearchView({
                         <div className="p-8">
                             <div className="mb-6">
                                 <h2 className="text-2xl font-bold text-white flex items-center gap-3 mb-2">
-                                    <span className="text-3xl">✨</span> Pilih Kategori
+                                    <span className="text-3xl">✨</span> Pilih Jenis Destinasi
                                 </h2>
-                                <p className="text-white/60">Pilih kategori destinasi yang Anda minati</p>
+                                <p className="text-white/60">Pilih jenis destinasi yang Anda minati</p>
                             </div>
                             
                             <div className="mb-6">
-                                <label className="block text-sm text-white/80 font-medium mb-3">Kategori Wisata</label>
+                                <label className="block text-sm text-white/80 font-medium mb-3">Jenis Destinasi</label>
                                 <div className="flex flex-wrap gap-2">
-                                    {allLabels.map((label) => (
+                                    {allDestinationTypes.map((type) => (
                                         <button
-                                            key={label}
-                                            onClick={() => toggleLabel(label)}
-                                            className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                                                prefLabels.includes(label)
+                                            key={type.id}
+                                            onClick={() => toggleDestinationType(type.id)}
+                                            className={`px-4 py-2 rounded-full text-sm font-medium transition-all flex items-center gap-2 ${
+                                                selectedDestinationTypes.includes(type.id)
                                                     ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/30'
                                                     : 'bg-white/10 text-white/70 hover:bg-white/20'
                                             }`}
                                         >
-                                            {label}
+                                            <span>{type.icon}</span>
+                                            <span>{type.title}</span>
                                         </button>
                                     ))}
                                 </div>
@@ -573,9 +591,19 @@ export default function SearchView({
 
                                             {item.metadata && (
                                                 <div className="flex flex-wrap gap-1">
-                                                    {item.metadata.price_range && (
+                                                    {item.metadata.activity_levels && item.metadata.activity_levels.length > 0 && (
                                                         <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-white/10 rounded text-[9px] text-white/70">
-                                                            💰 {item.metadata.price_range}
+                                                            🏃 {item.metadata.activity_levels[0]}
+                                                        </span>
+                                                    )}
+                                                    {item.metadata.price_ranges && item.metadata.price_ranges.length > 0 && (
+                                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-white/10 rounded text-[9px] text-white/70">
+                                                            💰 {item.metadata.price_ranges[0]}
+                                                        </span>
+                                                    )}
+                                                    {item.metadata.best_seasons && item.metadata.best_seasons.length > 0 && (
+                                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-white/10 rounded text-[9px] text-white/70">
+                                                            📅 {item.metadata.best_seasons[0]}
                                                         </span>
                                                     )}
                                                     {item.metadata.duration_hours && (

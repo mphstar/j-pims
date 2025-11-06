@@ -26,13 +26,18 @@ class PariwisataProduct extends Model
         return $this->hasMany(PariwisataOverlays::class, 'product_id');
     }
 
-    public function metadata()
+    public function activityLevels()
     {
-        return $this->hasOne(PariwisataProductMetadata::class, 'product_id');
+        return $this->belongsToMany(PreferenceActivityLevel::class, 'product_activity_levels', 'product_id', 'preference_activity_level_id');
     }
 
-    public function preferenceValues()
+    public function priceRanges()
     {
-        return $this->belongsToMany(\App\Models\PreferenceValue::class, 'pariwisata_product_preference_values', 'product_id', 'preference_value_id');
+        return $this->belongsToMany(PreferencePriceRange::class, 'product_price_ranges', 'product_id', 'preference_price_range_id');
+    }
+
+    public function visitTimes()
+    {
+        return $this->belongsToMany(PreferenceVisitTime::class, 'product_visit_times', 'product_id', 'preference_visit_time_id');
     }
 }

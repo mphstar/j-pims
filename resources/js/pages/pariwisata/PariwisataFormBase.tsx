@@ -24,23 +24,12 @@ interface OverlayType {
     __dirty?: boolean;
 }
 
-interface MetadataType {
-    id?: number;
-    activity_level?: 'easy' | 'moderate' | 'challenging' | null;
-    price_range?: 'budget' | 'moderate' | 'expensive' | 'luxury' | null;
-    best_season?: string | null;
-    tags?: string[] | null;
-    duration_hours?: number | null;
-    target_age_group?: string[] | null;
-    facilities?: string[] | null;
-    accessibility?: 'wheelchair_friendly' | 'child_friendly' | 'elderly_friendly' | 'all_accessible' | null;
-}
-
 interface Props {
     item?: any | null;
     mode: 'create' | 'edit';
     overlays?: OverlayType[];
-    metadata?: MetadataType | null;
+    destinationTypes?: Array<{ id: number; icon: string; title: string }>;
+    selectedDestinationTypeIds?: number[];
 }
 
 const defaultValues = {
@@ -52,42 +41,25 @@ const defaultValues = {
     background_url: '',
     cta_href: '',
     cta_label: '',
-    align: 'left'
+    align: 'left',
+    destination_type_ids: [] as number[]
 };
 
-export default function PariwisataFormBase({ item, mode, overlays = [], metadata = null }: Props) {
+export default function PariwisataFormBase({ item, mode, overlays = [], destinationTypes = [], selectedDestinationTypeIds = [] }: Props) {
     const editing = mode === 'edit' && !!item;
     const page = usePage().props as any;
     const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
 
-    const { data, setData, processing, errors, clearErrors } = useForm<{ [K in keyof typeof defaultValues]: (typeof defaultValues)[K] } & { background_image?: File | null }>({ ...defaultValues, background_image: null });
+    const { data, setData, processing, errors, clearErrors } = useForm<{ [K in keyof typeof defaultValues]: (typeof defaultValues)[K] } & { background_image?: File | null }>({ 
+        ...defaultValues, 
+        background_image: null,
+        destination_type_ids: selectedDestinationTypeIds 
+    });
     const [bgPreview, setBgPreview] = useState<string | null>(null);
     const [isMobile, setIsMobile] = useState(false);
     const [previewOpen, setPreviewOpen] = useState(false);
     const [uploadingBg, setUploadingBg] = useState(false);
     const [bgError, setBgError] = useState<string | null>(null);
-    
-    // Metadata state
-    const [metadataData, setMetadataData] = useState<MetadataType>({
-        activity_level: metadata?.activity_level || null,
-        price_range: metadata?.price_range || null,
-        best_season: metadata?.best_season || null,
-        tags: metadata?.tags || [],
-        duration_hours: metadata?.duration_hours || null,
-        target_age_group: metadata?.target_age_group || [],
-        facilities: metadata?.facilities || [],
-        accessibility: metadata?.accessibility || null,
-    });
-    const [savingMetadata, setSavingMetadata] = useState(false);
-    const [tagsInput, setTagsInput] = useState('');
-    const [ageGroupInput, setAgeGroupInput] = useState('');
-    const [facilitiesInput, setFacilitiesInput] = useState('');
-    // Preference master options from backend
-    const preferenceOptions = (page?.preferenceOptions || { activity: [], price: [], season: [] }) as { [k: string]: Array<{ id: number; key: string; label: string }> };
-    const selectedPref = (page?.selectedPreferenceIds || { activity: [], price: [], season: [] }) as { [k: string]: number[] };
-    const [activityPrefIds, setActivityPrefIds] = useState<number[]>(selectedPref.activity || []);
-    const [pricePrefIds, setPricePrefIds] = useState<number[]>(selectedPref.price || []);
-    const [seasonPrefIds, setSeasonPrefIds] = useState<number[]>(selectedPref.season || []);
     
     // Overlays state
     const [overlayList, setOverlayList] = useState<OverlayType[]>(overlays.map(o => ({ ...o, __dirty: false })));
@@ -124,7 +96,11 @@ export default function PariwisataFormBase({ item, mode, overlays = [], metadata
 
     useEffect(() => {
         if (editing) {
-            setData({ ...defaultValues, ...item });
+            setData({ 
+                ...defaultValues, 
+                ...item,
+                destination_type_ids: selectedDestinationTypeIds 
+            });
         }
     }, [editing, item]);
 
@@ -335,83 +311,6 @@ export default function PariwisataFormBase({ item, mode, overlays = [], metadata
         }
     };
 
-    const saveMetadata = () => {
-        if (!editing || !item?.id) {
-            toast.error('Simpan destinasi dulu sebelum menambahkan metadata');
-            return;
-        }
-        
-        setSavingMetadata(true);
-        router.post(route('pariwisata.metadata.store', item.id), {
-            ...(metadataData as any),
-            activity_preference_ids: activityPrefIds,
-            price_preference_ids: pricePrefIds,
-            season_preference_ids: seasonPrefIds,
-        }, {
-            preserveScroll: true,
-            onSuccess: () => {
-                toast.success('Metadata tersimpan');
-            },
-            onError: () => {
-                toast.error('Gagal menyimpan metadata');
-            },
-            onFinish: () => {
-                setSavingMetadata(false);
-            }
-        });
-    };
-
-    const addTag = () => {
-        if (tagsInput.trim()) {
-            setMetadataData(prev => ({
-                ...prev,
-                tags: [...(prev.tags || []), tagsInput.trim()]
-            }));
-            setTagsInput('');
-        }
-    };
-
-    const removeTag = (index: number) => {
-        setMetadataData(prev => ({
-            ...prev,
-            tags: (prev.tags || []).filter((_, i) => i !== index)
-        }));
-    };
-
-    const addAgeGroup = () => {
-        if (ageGroupInput.trim()) {
-            setMetadataData(prev => ({
-                ...prev,
-                target_age_group: [...(prev.target_age_group || []), ageGroupInput.trim()]
-            }));
-            setAgeGroupInput('');
-        }
-    };
-
-    const removeAgeGroup = (index: number) => {
-        setMetadataData(prev => ({
-            ...prev,
-            target_age_group: (prev.target_age_group || []).filter((_, i) => i !== index)
-        }));
-    };
-
-    const addFacility = () => {
-        if (facilitiesInput.trim()) {
-            setMetadataData(prev => ({
-                ...prev,
-                facilities: [...(prev.facilities || []), facilitiesInput.trim()]
-            }));
-            setFacilitiesInput('');
-        }
-    };
-
-    const removeFacility = (index: number) => {
-        setMetadataData(prev => ({
-            ...prev,
-            facilities: (prev.facilities || []).filter((_, i) => i !== index)
-        }));
-    };
-
     const preview = useMemo(() => {
         return (
             <div className='relative w-full h-screen snap-start flex items-center justify-center overflow-hidden bg-muted'>
@@ -522,216 +421,29 @@ export default function PariwisataFormBase({ item, mode, overlays = [], metadata
                     </div>
 
                     <div className='space-y-4 pt-4 border-t'>
-                        <div className='flex items-center justify-between'>
-                            <h3 className='text-sm font-semibold'>Metadata Personalisasi</h3>
-                            {editing && (
-                                <Button type='button' size='sm' onClick={saveMetadata} disabled={savingMetadata}>
-                                    {savingMetadata ? 'Menyimpan...' : 'Simpan Metadata'}
-                                </Button>
-                            )}
-                        </div>
-                        {!editing && (
-                            <p className='text-xs text-muted-foreground'>Simpan destinasi dulu untuk bisa menyimpan metadata</p>
-                        )}
+                        <h3 className='text-sm font-semibold'>Jenis Destinasi</h3>
+                        <p className='text-xs text-muted-foreground'>Pilih satu atau lebih jenis destinasi yang sesuai.</p>
                         
-                        <div className='space-y-2'>
-                            <Label className='text-sm font-medium'>Activity Level</Label>
-                            <Select value={metadataData.activity_level || 'unset'} onValueChange={(val) => setMetadataData(prev => ({ ...prev, activity_level: val === 'unset' ? null : val as any }))}>
-                                <SelectTrigger className='h-9'>
-                                    <SelectValue placeholder='Pilih tingkat aktivitas' />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value='unset'>-- Tidak diset --</SelectItem>
-                                    <SelectItem value='easy'>Easy (Santai)</SelectItem>
-                                    <SelectItem value='moderate'>Moderate (Sedang)</SelectItem>
-                                    <SelectItem value='challenging'>Challenging (Menantang)</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-
-                        <div className='space-y-2'>
-                            <Label className='text-sm font-medium'>Price Range</Label>
-                            <Select value={metadataData.price_range || 'unset'} onValueChange={(val) => setMetadataData(prev => ({ ...prev, price_range: val === 'unset' ? null : val as any }))}>
-                                <SelectTrigger className='h-9'>
-                                    <SelectValue placeholder='Pilih rentang harga' />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value='unset'>-- Tidak diset --</SelectItem>
-                                    <SelectItem value='budget'>Budget (Hemat)</SelectItem>
-                                    <SelectItem value='moderate'>Moderate (Menengah)</SelectItem>
-                                    <SelectItem value='expensive'>Expensive (Mahal)</SelectItem>
-                                    <SelectItem value='luxury'>Luxury (Mewah)</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-
-                        <div className='space-y-2'>
-                            <Label className='text-sm font-medium'>Best Season</Label>
-                            <Input 
-                                value={metadataData.best_season || ''} 
-                                onChange={e => setMetadataData(prev => ({ ...prev, best_season: e.target.value || null }))}
-                                placeholder='e.g., Mei-Oktober, Musim Kemarau'
-                            />
-                            <p className='text-xs text-muted-foreground'>Waktu terbaik berkunjung</p>
-                        </div>
-
-                        {/* Preference assignments (DB-driven) */}
-                        <div className='grid grid-cols-1 gap-4 pt-2'>
-                            <div>
-                                <Label className='text-sm font-semibold'>Preferensi Aktivitas (bisa pilih banyak)</Label>
-                                <div className='mt-2 flex flex-wrap gap-3'>
-                                    {preferenceOptions.activity?.map(opt => (
-                                        <label key={opt.id} className='inline-flex items-center gap-2 text-sm'>
-                                            <Checkbox
-                                                checked={activityPrefIds.includes(opt.id)}
-                                                onCheckedChange={(checked) => {
-                                                    setActivityPrefIds(prev => checked ? [...prev, opt.id] : prev.filter(id => id !== opt.id));
-                                                }}
-                                            />
-                                            <span>{opt.label} <span className='text-xs text-muted-foreground'>({opt.key})</span></span>
-                                        </label>
-                                    ))}
-                                    {(!preferenceOptions.activity || preferenceOptions.activity.length === 0) && (
-                                        <p className='text-xs text-muted-foreground'>Belum ada master preferensi aktivitas.</p>
-                                    )}
-                                </div>
-                            </div>
-                            <div>
-                                <Label className='text-sm font-semibold'>Preferensi Harga</Label>
-                                <div className='mt-2 flex flex-wrap gap-3'>
-                                    {preferenceOptions.price?.map(opt => (
-                                        <label key={opt.id} className='inline-flex items-center gap-2 text-sm'>
-                                            <Checkbox
-                                                checked={pricePrefIds.includes(opt.id)}
-                                                onCheckedChange={(checked) => {
-                                                    setPricePrefIds(prev => checked ? [...prev, opt.id] : prev.filter(id => id !== opt.id));
-                                                }}
-                                            />
-                                            <span>{opt.label} <span className='text-xs text-muted-foreground'>({opt.key})</span></span>
-                                        </label>
-                                    ))}
-                                    {(!preferenceOptions.price || preferenceOptions.price.length === 0) && (
-                                        <p className='text-xs text-muted-foreground'>Belum ada master preferensi harga.</p>
-                                    )}
-                                </div>
-                            </div>
-                            <div>
-                                <Label className='text-sm font-semibold'>Preferensi Musim</Label>
-                                <div className='mt-2 flex flex-wrap gap-3'>
-                                    {preferenceOptions.season?.map(opt => (
-                                        <label key={opt.id} className='inline-flex items-center gap-2 text-sm'>
-                                            <Checkbox
-                                                checked={seasonPrefIds.includes(opt.id)}
-                                                onCheckedChange={(checked) => {
-                                                    setSeasonPrefIds(prev => checked ? [...prev, opt.id] : prev.filter(id => id !== opt.id));
-                                                }}
-                                            />
-                                            <span>{opt.label} <span className='text-xs text-muted-foreground'>({opt.key})</span></span>
-                                        </label>
-                                    ))}
-                                    {(!preferenceOptions.season || preferenceOptions.season.length === 0) && (
-                                        <p className='text-xs text-muted-foreground'>Belum ada master preferensi musim.</p>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className='space-y-2'>
-                            <Label className='text-sm font-medium'>Duration (Jam)</Label>
-                            <Input 
-                                type='number' 
-                                step='0.5'
-                                value={metadataData.duration_hours || ''} 
-                                onChange={e => setMetadataData(prev => ({ ...prev, duration_hours: e.target.value ? parseFloat(e.target.value) : null }))}
-                                placeholder='e.g., 2.5'
-                            />
-                            <p className='text-xs text-muted-foreground'>Durasi ideal kunjungan dalam jam</p>
-                        </div>
-
-                        <div className='space-y-2'>
-                            <Label className='text-sm font-medium'>Tags</Label>
-                            <div className='flex gap-2'>
-                                <Input 
-                                    value={tagsInput} 
-                                    onChange={e => setTagsInput(e.target.value)}
-                                    onKeyPress={e => e.key === 'Enter' && (e.preventDefault(), addTag())}
-                                    placeholder='Tambah tag (Enter)'
-                                />
-                                <Button type='button' size='sm' onClick={addTag}>+</Button>
-                            </div>
-                            <div className='flex flex-wrap gap-1'>
-                                {(metadataData.tags || []).map((tag, i) => (
-                                    <span key={i} className='inline-flex items-center gap-1 px-2 py-0.5 bg-primary/10 rounded text-xs'>
-                                        {tag}
-                                        <button type='button' onClick={() => removeTag(i)} className='text-red-500 hover:text-red-700'>×</button>
-                                    </span>
-                                ))}
-                            </div>
-                        </div>
-
-                        <div className='space-y-2'>
-                            <Label className='text-sm font-medium'>Target Age Group</Label>
-                            <div className='flex gap-2'>
-                                <Input 
-                                    value={ageGroupInput} 
-                                    onChange={e => setAgeGroupInput(e.target.value)}
-                                    onKeyPress={e => e.key === 'Enter' && (e.preventDefault(), addAgeGroup())}
-                                    placeholder='e.g., children, adults (Enter)'
-                                />
-                                <Button type='button' size='sm' onClick={addAgeGroup}>+</Button>
-                            </div>
-                            <div className='flex flex-wrap gap-1'>
-                                {(metadataData.target_age_group || []).map((group, i) => (
-                                    <span key={i} className='inline-flex items-center gap-1 px-2 py-0.5 bg-secondary rounded text-xs'>
-                                        {group}
-                                        <button type='button' onClick={() => removeAgeGroup(i)} className='text-red-500 hover:text-red-700'>×</button>
-                                    </span>
-                                ))}
-                            </div>
-                            <p className='text-xs text-muted-foreground'>e.g., children, teens, adults, elderly</p>
-                        </div>
-
-                        <div className='pt-3 border-t'>
-                            <p className='text-xs font-semibold text-muted-foreground mb-3'>Specific untuk Destinasi</p>
-                            
-                            <div className='space-y-2'>
-                                <Label className='text-sm font-medium'>Facilities</Label>
-                                <div className='flex gap-2'>
-                                    <Input 
-                                        value={facilitiesInput} 
-                                        onChange={e => setFacilitiesInput(e.target.value)}
-                                        onKeyPress={e => e.key === 'Enter' && (e.preventDefault(), addFacility())}
-                                        placeholder='e.g., parking, toilet (Enter)'
+                        <div className='grid grid-cols-2 gap-3'>
+                            {destinationTypes.map(type => (
+                                <label key={type.id} className='flex items-center gap-2 p-3 border rounded cursor-pointer hover:bg-muted/50 transition-colors'>
+                                    <Checkbox
+                                        checked={data.destination_type_ids.includes(type.id)}
+                                        onCheckedChange={(checked) => {
+                                            setData('destination_type_ids', checked 
+                                                ? [...data.destination_type_ids, type.id] 
+                                                : data.destination_type_ids.filter(id => id !== type.id)
+                                            );
+                                        }}
                                     />
-                                    <Button type='button' size='sm' onClick={addFacility}>+</Button>
-                                </div>
-                                <div className='flex flex-wrap gap-1'>
-                                    {(metadataData.facilities || []).map((facility, i) => (
-                                        <span key={i} className='inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 rounded text-xs'>
-                                            {facility}
-                                            <button type='button' onClick={() => removeFacility(i)} className='text-red-500 hover:text-red-700'>×</button>
-                                        </span>
-                                    ))}
-                                </div>
-                                <p className='text-xs text-muted-foreground'>e.g., parking, toilet, restaurant, wifi, ATM</p>
-                            </div>
-
-                            <div className='space-y-2 mt-3'>
-                                <Label className='text-sm font-medium'>Accessibility</Label>
-                                <Select value={metadataData.accessibility || 'unset'} onValueChange={(val) => setMetadataData(prev => ({ ...prev, accessibility: val === 'unset' ? null : val as any }))}>
-                                    <SelectTrigger className='h-9'>
-                                        <SelectValue placeholder='Pilih aksesibilitas' />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value='unset'>-- Tidak diset --</SelectItem>
-                                        <SelectItem value='wheelchair_friendly'>Wheelchair Friendly</SelectItem>
-                                        <SelectItem value='child_friendly'>Child Friendly</SelectItem>
-                                        <SelectItem value='elderly_friendly'>Elderly Friendly</SelectItem>
-                                        <SelectItem value='all_accessible'>All Accessible</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
+                                    <span className='text-lg'>{type.icon}</span>
+                                    <span className='text-sm font-medium'>{type.title}</span>
+                                </label>
+                            ))}
                         </div>
+                        {destinationTypes.length === 0 && (
+                            <p className='text-xs text-muted-foreground'>Belum ada data jenis destinasi. Silakan tambahkan dari menu Preferences → Destination Types.</p>
+                        )}
                     </div>
                 </form>
                 {!isMobile && (

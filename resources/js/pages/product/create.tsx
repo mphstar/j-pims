@@ -10,12 +10,31 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 export default function CreateProduct() {
-  const { destinations, selectedPariwisataId } = usePage().props as any;
+  const { 
+    destinations, 
+    selectedPariwisataId,
+    activityLevels,
+    priceRanges,
+    visitTimes,
+    selectedActivityLevelIds,
+    selectedPriceRangeIds,
+    selectedVisitTimeIds
+  } = usePage().props as any;
 
   return (
     <AppLayout breadcrumbs={breadcrumbs}>
       <Head title="Tambah Product" />
-      <ProductFormBase mode='create' destinations={destinations || []} selectedPariwisataId={selectedPariwisataId || null} />
+      <ProductFormBase 
+        mode='create' 
+        destinations={destinations || []} 
+        selectedPariwisataId={selectedPariwisataId || null}
+        activityLevels={activityLevels || []}
+        priceRanges={priceRanges || []}
+        visitTimes={visitTimes || []}
+        selectedActivityLevelIds={selectedActivityLevelIds || []}
+        selectedPriceRangeIds={selectedPriceRangeIds || []}
+        selectedVisitTimeIds={selectedVisitTimeIds || []}
+      />
     </AppLayout>
   );
 }

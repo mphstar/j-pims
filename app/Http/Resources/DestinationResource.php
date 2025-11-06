@@ -18,7 +18,21 @@ class DestinationResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        // For now, we create a single product that mirrors the destination data.
+        // Map preference relationships to metadata format for frontend
+        $metadata = (object)[];
+        
+        // Destination Types
+        if ($this->relationLoaded('destinationTypes')) {
+            $metadata->destination_types = $this->destinationTypes->map(function($dt) {
+                return [
+                    'id' => $dt->id,
+                    'icon' => $dt->icon,
+                    'title' => $dt->title,
+                    'key' => \Illuminate\Support\Str::slug($dt->title),
+                ];
+            })->toArray();
+        }
+        
         return [
             'id' => $this->id,
             'title' => $this->title,
@@ -34,6 +48,7 @@ class DestinationResource extends JsonResource
             'updated_at' => $this->updated_at,
             'overlays' => OverlayResource::collection($this->whenLoaded('overlays', $this->overlays)),
             'products' => ProductResource::collection($this->whenLoaded('products', $this->products ?? [])),
+            'metadata' => $metadata,
         ];
     }
 }

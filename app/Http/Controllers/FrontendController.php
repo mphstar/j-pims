@@ -9,88 +9,119 @@ use App\Models\PariwisataProductMetadata;
 use App\Models\Setting;
 use App\Http\Resources\DestinationResource;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 
 class FrontendController extends Controller
 {
     public function index()
     {
-        $pariwisata = Pariwisata::with(['overlays', 'metadata', 'preferenceValues'])->get();
+        // Load pariwisata with new preference relationships
+        $pariwisata = Pariwisata::with([
+            'overlays',
+            'destinationTypes', // preference_destination_types pivot
+        ])->get();
+        
         $setting = Setting::first();
         
-        // Get metadata options from database
+        // Get metadata options from new preference tables
         $metadataOptions = $this->getMetadataOptions();
+        
+        // Extract keys for OnboardingDialog (backward compatibility)
+        $metadataKeys = [
+            'activity_levels' => array_column($metadataOptions['activity_levels'], 'key'),
+            'price_ranges' => array_column($metadataOptions['price_ranges'], 'key'),
+            'best_seasons' => array_column($metadataOptions['visit_times'], 'key'), // Map visit_times to best_seasons for compatibility
+            'tags' => [], // Deprecated
+        ];
         
         return Inertia::render('frontend/PariwisataView', [
             'pariwisata' => $pariwisata->map(function($p){
-                // augment metadata with preference arrays
-                $meta = $p->metadata ?: new \stdClass();
-                $prefs = $p->preferenceValues ?: collect();
-                $meta->activity_levels = $prefs->where('type','activity')->pluck('key')->values();
-                $meta->price_ranges = $prefs->where('type','price')->pluck('key')->values();
-                $meta->best_seasons = $prefs->where('type','season')->pluck('key')->values();
-                $p->setRelation('metadata', $meta);
+                // Map new preference relationships to frontend format
+                $destinationTypes = $p->destinationTypes->map(function($dt) {
+                    return [
+                        'id' => $dt->id,
+                        'icon' => $dt->icon,
+                        'title' => $dt->title,
+                        'key' => Str::slug($dt->title), // Generate key for compatibility
+                    ];
+                })->toArray();
+                
+                // Create metadata object for frontend compatibility
+                $metadata = (object)[
+                    'destination_types' => $destinationTypes,
+                ];
+                
+                $p->metadata = $metadata;
                 return $p;
             }),
             'setting' => $setting ?: ['style' => 'column'],
-            'metadataOptions' => $metadataOptions,
+            'metadataOptions' => $metadataKeys, // Send keys for OnboardingDialog compatibility
+            'metadataDetails' => $metadataOptions, // Full objects for future use
         ]);
     }
     
     /**
-     * Get available metadata options from existing data
+     * Get available metadata options from new preference tables
      */
     private function getMetadataOptions()
     {
-        // Get unique values from existing metadata
-        $destinationMetadata = PariwisataMetadata::select('activity_level', 'price_range', 'best_season', 'tags')
-            ->whereNotNull('activity_level')
-            ->orWhereNotNull('price_range')
-            ->orWhereNotNull('best_season')
-            ->orWhereNotNull('tags')
-            ->get();
+        // Get active preferences from new tables
+        $activityLevels = \App\Models\PreferenceActivityLevel::orderBy('title')
+            ->get(['id', 'icon', 'title', 'subtitle'])
+            ->map(function($item) {
+                return [
+                    'id' => $item->id,
+                    'icon' => $item->icon,
+                    'title' => $item->title,
+                    'subtitle' => $item->subtitle,
+                    'key' => Str::slug($item->title), // For localStorage compatibility
+                ];
+            })->toArray();
             
-        $productMetadata = PariwisataProductMetadata::select('activity_level', 'price_range', 'best_season', 'tags')
-            ->whereNotNull('activity_level')
-            ->orWhereNotNull('price_range')
-            ->orWhereNotNull('best_season')
-            ->orWhereNotNull('tags')
-            ->get();
+        $priceRanges = \App\Models\PreferencePriceRange::orderBy('title')
+            ->get(['id', 'icon', 'title', 'subtitle'])
+            ->map(function($item) {
+                return [
+                    'id' => $item->id,
+                    'icon' => $item->icon,
+                    'title' => $item->title,
+                    'subtitle' => $item->subtitle,
+                    'key' => Str::slug($item->title),
+                ];
+            })->toArray();
+            
+        $visitTimes = \App\Models\PreferenceVisitTime::orderBy('title')
+            ->get(['id', 'icon', 'title', 'subtitle'])
+            ->map(function($item) {
+                return [
+                    'id' => $item->id,
+                    'icon' => $item->icon,
+                    'title' => $item->title,
+                    'subtitle' => $item->subtitle,
+                    'key' => Str::slug($item->title),
+                ];
+            })->toArray();
+            
+        $destinationTypes = \App\Models\PreferenceDestinationType::orderBy('title')
+            ->get(['id', 'icon', 'title'])
+            ->map(function($item) {
+                return [
+                    'id' => $item->id,
+                    'icon' => $item->icon,
+                    'title' => $item->title,
+                    'subtitle' => null, // No subtitle field in destination_types table
+                    'key' => Str::slug($item->title),
+                ];
+            })->toArray();
 
-        // Also include from preference_values master if present
-        $pref = \App\Models\PreferenceValue::query();
-        $activityLevelsFromPref = $pref->clone()->where('type','activity')->where('active',true)->orderBy('sort')->pluck('key')->toArray();
-        $priceRangesFromPref = $pref->clone()->where('type','price')->where('active',true)->orderBy('sort')->pluck('key')->toArray();
-        $bestSeasonsFromPref = $pref->clone()->where('type','season')->where('active',true)->orderBy('sort')->pluck('label')->toArray();
-
-        // Combine and get unique values
-        $activityLevels = collect([
-            ...$destinationMetadata->pluck('activity_level')->filter(),
-            ...$productMetadata->pluck('activity_level')->filter()
-        ])->unique()->values()->toArray();
-
-        $priceRanges = collect([
-            ...$destinationMetadata->pluck('price_range')->filter(),
-            ...$productMetadata->pluck('price_range')->filter()
-        ])->unique()->values()->toArray();
-
-        $bestSeasons = collect([
-            ...$destinationMetadata->pluck('best_season')->filter(),
-            ...$productMetadata->pluck('best_season')->filter()
-        ])->unique()->values()->toArray();
-
-        // Extract tags from JSON arrays (for future use)
-        $allTags = collect([
-            ...$destinationMetadata->pluck('tags')->filter()->flatten(),
-            ...$productMetadata->pluck('tags')->filter()->flatten()
-        ])->unique()->values()->toArray();
-
-        // Fallback to enum options if no data exists
         return [
-            'activity_levels' => count($activityLevelsFromPref) > 0 ? $activityLevelsFromPref : (count($activityLevels) > 0 ? $activityLevels : ['easy', 'moderate', 'challenging']),
-            'price_ranges' => count($priceRangesFromPref) > 0 ? $priceRangesFromPref : (count($priceRanges) > 0 ? $priceRanges : ['budget', 'moderate', 'expensive', 'luxury']),
-            'best_seasons' => count($bestSeasonsFromPref) > 0 ? $bestSeasonsFromPref : (count($bestSeasons) > 0 ? $bestSeasons : ['Januari-April', 'Mei-Oktober', 'Sepanjang Tahun']),
-            'tags' => $allTags,
+            'activity_levels' => $activityLevels,
+            'price_ranges' => $priceRanges,
+            'visit_times' => $visitTimes,
+            'destination_types' => $destinationTypes,
+            'best_seasons' => [], // Deprecated, kept for compatibility
+            'tags' => [], // Deprecated, kept for compatibility
         ];
     }
 
@@ -105,44 +136,70 @@ class FrontendController extends Controller
 
     public function products($slug)
     {
-        $item = Pariwisata::with(['overlays', 'metadata', 'preferenceValues', 'products.overlays', 'products.metadata', 'products.preferenceValues'])->where('slug', $slug)->firstOrFail();
+        // Load destination with new preference relationships
+        $item = Pariwisata::with([
+            'overlays',
+            'destinationTypes',
+            'products' => function($query) {
+                $query->with(['overlays', 'activityLevels', 'priceRanges', 'visitTimes']);
+            }
+        ])->where('slug', $slug)->firstOrFail();
+        
         // Build destination payload with nested products
         $destination = (new DestinationResource($item));
         $setting = Setting::first();
+        
+        // Get metadata options for personalization
+        $metadataOptions = $this->getMetadataOptions();
+        
+        // Extract keys for OnboardingDialog compatibility
+        $metadataKeys = [
+            'activity_levels' => array_column($metadataOptions['activity_levels'], 'key'),
+            'price_ranges' => array_column($metadataOptions['price_ranges'], 'key'),
+            'best_seasons' => array_column($metadataOptions['visit_times'], 'key'), // Map visit_times to best_seasons for compatibility
+            'tags' => [], // Deprecated
+        ];
 
         return Inertia::render('frontend/DestinationProducts', [
             'destination' => $destination,
             'setting' => $setting ?: ['style' => 'column'],
+            'metadataOptions' => $metadataKeys, // Send keys for OnboardingDialog compatibility
+            'metadataDetails' => $metadataOptions, // Full objects for future use
         ]);
     }
 
     public function product($slug, $product)
     {
-        $dest = Pariwisata::with(['metadata','preferenceValues'])->where('slug', $slug)->firstOrFail();
-        $prod = PariwisataProduct::with(['overlays', 'metadata','preferenceValues'])->where('pariwisata_id', $dest->id)->where('slug', $product)->firstOrFail();
+        // Load destination with new preference relationships
+        $dest = Pariwisata::with(['overlays', 'destinationTypes'])->where('slug', $slug)->firstOrFail();
+        
+        // Load product with new preference relationships
+        $prod = PariwisataProduct::with(['overlays', 'activityLevels', 'priceRanges', 'visitTimes'])
+            ->where('pariwisata_id', $dest->id)
+            ->where('slug', $product)
+            ->firstOrFail();
+            
         $setting = Setting::first();
-        // Also load destination overlays and metadata for fallback rendering if product has none
-        $dest->load(['overlays']);
-        // augment metadata arrays from preferences
-        $destMeta = $dest->metadata ?: new \stdClass();
-        $dPrefs = $dest->preferenceValues ?: collect();
-        $destMeta->activity_levels = $dPrefs->where('type','activity')->pluck('key')->values();
-        $destMeta->price_ranges = $dPrefs->where('type','price')->pluck('key')->values();
-        $destMeta->best_seasons = $dPrefs->where('type','season')->pluck('key')->values();
-        $dest->setRelation('metadata', $destMeta);
-
-        $prodMeta = $prod->metadata ?: new \stdClass();
-        $pPrefs = $prod->preferenceValues ?: collect();
-        $prodMeta->activity_levels = $pPrefs->where('type','activity')->pluck('key')->values();
-        $prodMeta->price_ranges = $pPrefs->where('type','price')->pluck('key')->values();
-        $prodMeta->best_seasons = $pPrefs->where('type','season')->pluck('key')->values();
-        $prod->setRelation('metadata', $prodMeta);
+        
+        // Map destination preferences to metadata format
+        $destMeta = (object)[
+            'destination_types' => $dest->destinationTypes->map(function($dt) {
+                return $dt->title;
+            })->toArray(),
+        ];
+        
+        // Map product preferences to metadata format using keys
+        $prodMeta = (object)[
+            'activity_levels' => $prod->activityLevels->pluck('title')->map(fn($t) => Str::slug($t))->toArray(),
+            'price_ranges' => $prod->priceRanges->pluck('title')->map(fn($t) => Str::slug($t))->toArray(),
+            'best_seasons' => $prod->visitTimes->pluck('title')->map(fn($t) => Str::slug($t))->toArray(),
+        ];
+        
         return Inertia::render('frontend/ProductView', [
-            'destination' => $dest->only(['id','title','slug','label','subtitle','content','background_url','cta_href','cta_label','align']) + ['overlays' => $dest->overlays, 'metadata' => $dest->metadata],
-            'product' => $prod->only(['id','title','slug','label','subtitle','content','background_url','cta_href','cta_label','align']) + ['overlays' => $prod->overlays, 'metadata' => $prod->metadata],
-            // Provide products array to allow multi-product rendering on the frontend
+            'destination' => $dest->only(['id','title','slug','label','subtitle','content','background_url','cta_href','cta_label','align']) + ['overlays' => $dest->overlays, 'metadata' => $destMeta],
+            'product' => $prod->only(['id','title','slug','label','subtitle','content','background_url','cta_href','cta_label','align']) + ['overlays' => $prod->overlays, 'metadata' => $prodMeta],
             'products' => [
-                $prod->only(['id','title','slug','label','subtitle','content','background_url','cta_href','cta_label','align']) + ['overlays' => $prod->overlays, 'metadata' => $prod->metadata]
+                $prod->only(['id','title','slug','label','subtitle','content','background_url','cta_href','cta_label','align']) + ['overlays' => $prod->overlays, 'metadata' => $prodMeta]
             ],
             'setting' => $setting ?: ['style' => 'column'],
         ]);
@@ -150,29 +207,38 @@ class FrontendController extends Controller
 
     public function productById(\App\Models\PariwisataProduct $product)
     {
-        // Render a single product in the same style as a pariwisata section (no variants)
-        $product->load(['overlays', 'metadata', 'preferenceValues', 'pariwisata.overlays', 'pariwisata.metadata', 'pariwisata.preferenceValues']);
+        // Load product with new preference relationships
+        $product->load([
+            'overlays', 
+            'activityLevels', 
+            'priceRanges', 
+            'visitTimes',
+            'pariwisata.overlays',
+            'pariwisata.destinationTypes'
+        ]);
+        
         $setting = Setting::first();
         $destination = $product->pariwisata;
-        // augment metadata arrays
-        $destMeta = $destination->metadata ?: new \stdClass();
-        $dPrefs = $destination->preferenceValues ?: collect();
-        $destMeta->activity_levels = $dPrefs->where('type','activity')->pluck('key')->values();
-        $destMeta->price_ranges = $dPrefs->where('type','price')->pluck('key')->values();
-        $destMeta->best_seasons = $dPrefs->where('type','season')->pluck('key')->values();
-        $destination->setRelation('metadata', $destMeta);
-
-        $prodMeta = $product->metadata ?: new \stdClass();
-        $pPrefs = $product->preferenceValues ?: collect();
-        $prodMeta->activity_levels = $pPrefs->where('type','activity')->pluck('key')->values();
-        $prodMeta->price_ranges = $pPrefs->where('type','price')->pluck('key')->values();
-        $prodMeta->best_seasons = $pPrefs->where('type','season')->pluck('key')->values();
-        $product->setRelation('metadata', $prodMeta);
+        
+        // Map destination preferences to metadata format
+        $destMeta = (object)[
+            'destination_types' => $destination->destinationTypes->map(function($dt) {
+                return $dt->title;
+            })->toArray(),
+        ];
+        
+        // Map product preferences to metadata format using keys
+        $prodMeta = (object)[
+            'activity_levels' => $product->activityLevels->pluck('title')->map(fn($t) => Str::slug($t))->toArray(),
+            'price_ranges' => $product->priceRanges->pluck('title')->map(fn($t) => Str::slug($t))->toArray(),
+            'best_seasons' => $product->visitTimes->pluck('title')->map(fn($t) => Str::slug($t))->toArray(),
+        ];
+        
         return Inertia::render('frontend/ProductView', [
-            'destination' => $destination->only(['id','title','slug','label','subtitle','content','background_url','cta_href','cta_label','align']) + ['overlays' => $destination->overlays, 'metadata' => $destination->metadata],
-            'product' => $product->only(['id','title','slug','label','subtitle','content','background_url','cta_href','cta_label','align']) + ['overlays' => $product->overlays, 'metadata' => $product->metadata],
+            'destination' => $destination->only(['id','title','slug','label','subtitle','content','background_url','cta_href','cta_label','align']) + ['overlays' => $destination->overlays, 'metadata' => $destMeta],
+            'product' => $product->only(['id','title','slug','label','subtitle','content','background_url','cta_href','cta_label','align']) + ['overlays' => $product->overlays, 'metadata' => $prodMeta],
             'products' => [
-                $product->only(['id','title','slug','label','subtitle','content','background_url','cta_href','cta_label','align']) + ['overlays' => $product->overlays, 'metadata' => $product->metadata]
+                $product->only(['id','title','slug','label','subtitle','content','background_url','cta_href','cta_label','align']) + ['overlays' => $product->overlays, 'metadata' => $prodMeta]
             ],
             'setting' => $setting ?: ['style' => 'column'],
         ]);
@@ -181,35 +247,44 @@ class FrontendController extends Controller
     public function productBySlug($slug)
     {
         // Find destination by slug and render all its products as sections
-        $dest = Pariwisata::with(['overlays', 'metadata','preferenceValues', 'products.overlays', 'products.metadata', 'products.preferenceValues'])->where('slug', $slug)->firstOrFail();
+        $dest = Pariwisata::with([
+            'overlays', 
+            'destinationTypes',
+            'products.overlays', 
+            'products.activityLevels', 
+            'products.priceRanges', 
+            'products.visitTimes'
+        ])->where('slug', $slug)->firstOrFail();
+        
         $setting = Setting::first();
+        
+        // Map products with new preference relationships
         $products = $dest->products->map(function($p){
-            // augment product metadata with preferences
-            $prodMeta = $p->metadata ?: new \stdClass();
-            $pPrefs = $p->preferenceValues ?: collect();
-            $prodMeta->activity_levels = $pPrefs->where('type','activity')->pluck('key')->values();
-            $prodMeta->price_ranges = $pPrefs->where('type','price')->pluck('key')->values();
-            $prodMeta->best_seasons = $pPrefs->where('type','season')->pluck('key')->values();
+            $prodMeta = (object)[
+                'activity_levels' => $p->activityLevels->pluck('title')->map(fn($t) => Str::slug($t))->toArray(),
+                'price_ranges' => $p->priceRanges->pluck('title')->map(fn($t) => Str::slug($t))->toArray(),
+                'best_seasons' => $p->visitTimes->pluck('title')->map(fn($t) => Str::slug($t))->toArray(),
+            ];
             return $p->only(['id','title','slug','label','subtitle','content','background_url','cta_href','cta_label','align']) + ['overlays' => $p->overlays, 'metadata' => $prodMeta];
         })->values();
+
+        // Map destination metadata
+        $destMeta = (object)[
+            'destination_types' => $dest->destinationTypes->map(function($dt) {
+                return $dt->title;
+            })->toArray(),
+        ];
 
         // If no explicit products, fabricate one from destination
         if ($products->isEmpty()) {
             $productArray = $dest->only(['id','title','slug','label','subtitle','content','background_url','cta_href','cta_label','align']);
             $productArray['overlays'] = [];
-            // augment dest metadata arrays
-            $destMeta = $dest->metadata ?: new \stdClass();
-            $dPrefs = $dest->preferenceValues ?: collect();
-            $destMeta->activity_levels = $dPrefs->where('type','activity')->pluck('key')->values();
-            $destMeta->price_ranges = $dPrefs->where('type','price')->pluck('key')->values();
-            $destMeta->best_seasons = $dPrefs->where('type','season')->pluck('key')->values();
             $productArray['metadata'] = $destMeta;
             $products = collect([$productArray]);
         }
 
         return Inertia::render('frontend/ProductView', [
-            'destination' => $dest->only(['id','title','slug','label','subtitle','content','background_url','cta_href','cta_label','align']) + ['overlays' => $dest->overlays, 'metadata' => $dest->metadata],
-            // keep single 'product' for backward compat (first item)
+            'destination' => $dest->only(['id','title','slug','label','subtitle','content','background_url','cta_href','cta_label','align']) + ['overlays' => $dest->overlays, 'metadata' => $destMeta],
             'product' => $products->first(),
             'products' => $products,
             'setting' => $setting ?: ['style' => 'column'],

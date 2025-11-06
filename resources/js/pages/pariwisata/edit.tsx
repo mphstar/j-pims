@@ -9,12 +9,18 @@ const breadcrumbsBase: BreadcrumbItem[] = [
 ];
 
 export default function EditPariwisata() {
-  const { item, overlays, metadata } = usePage().props as any;
+  const { item, overlays, destinationTypes, selectedDestinationTypeIds } = usePage().props as any;
   const breadcrumbs: BreadcrumbItem[] = [...breadcrumbsBase, { title: 'Edit', href: '#' }];
   return (
     <AppLayout breadcrumbs={breadcrumbs}>
       <Head title={'Edit: ' + (item?.title || '')} />
-      <PariwisataFormBase mode='edit' item={item} overlays={overlays || []} metadata={metadata} />
+      <PariwisataFormBase 
+        mode='edit' 
+        item={item} 
+        overlays={overlays || []} 
+        destinationTypes={destinationTypes || []}
+        selectedDestinationTypeIds={selectedDestinationTypeIds || []}
+      />
     </AppLayout>
   );
 }

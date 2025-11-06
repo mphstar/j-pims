@@ -13,6 +13,11 @@ import {
     LucideLayoutTemplate,
     LucideUser,
     PackageSearch,
+    Settings2,
+    Activity,
+    DollarSign,
+    Clock,
+    MapPin,
 } from 'lucide-react';
 import AppLogo from './app-logo';
 
@@ -34,6 +39,29 @@ const masterNavItems: NavItem[] = [
         title: 'Pariwisata',
         url: '/pariwisata',
         icon: PackageSearch,
+    },
+];
+
+const preferenceNavItems: NavItem[] = [
+    {
+        title: 'Activity Levels',
+        url: '/preference-activity-levels',
+        icon: Activity,
+    },
+    {
+        title: 'Price Ranges',
+        url: '/preference-price-ranges',
+        icon: DollarSign,
+    },
+    {
+        title: 'Visit Times',
+        url: '/preference-visit-times',
+        icon: Clock,
+    },
+    {
+        title: 'Destination Types',
+        url: '/preference-destination-types',
+        icon: MapPin,
     }
 ];
 
@@ -68,6 +96,7 @@ export function AppSidebar() {
             <SidebarContent>
                 <NavMain items={mainNavItems} />
                 <NavMain title={'Master Data'} items={masterNavItems} />
+                <NavMain title={'Preferences'} items={preferenceNavItems} />
             </SidebarContent>
 
             <SidebarFooter>

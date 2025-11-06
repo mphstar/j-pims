@@ -4,6 +4,10 @@ use App\Http\Controllers\Admin\PariwisataController;
 use App\Http\Controllers\Admin\PariwisataProductController;
 use App\Http\Controllers\Admin\SettingController;
 use App\Http\Controllers\Admin\PreferenceValueController;
+use App\Http\Controllers\Admin\PreferenceActivityLevelController;
+use App\Http\Controllers\Admin\PreferencePriceRangeController;
+use App\Http\Controllers\Admin\PreferenceVisitTimeController;
+use App\Http\Controllers\Admin\PreferenceDestinationTypeController;
 use App\Http\Controllers\Admin\TahunAkademikController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Api\PariwisataApiController;
@@ -68,10 +72,25 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('{pariwisata}/overlays', [PariwisataController::class, 'storeOverlay'])->name('pariwisata.overlays.store');
         Route::post('overlays/{overlay}', [PariwisataController::class, 'updateOverlay'])->name('pariwisata.overlays.update');
         Route::post('overlays/{overlay}/delete', [PariwisataController::class, 'deleteOverlay'])->name('pariwisata.overlays.delete');
-
-        // Metadata
-        Route::post('{pariwisata}/metadata', [PariwisataController::class, 'storeMetadata'])->name('pariwisata.metadata.store');
     });
+
+    // Cerita (Admin)
+    Route::prefix('cerita')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Admin\CeritaController::class, 'index'])->name('cerita.index');
+        Route::get('create', [\App\Http\Controllers\Admin\CeritaController::class, 'create'])->name('cerita.create');
+        Route::post('store', [\App\Http\Controllers\Admin\CeritaController::class, 'store'])->name('cerita.store');
+        Route::get('edit/{cerita}', [\App\Http\Controllers\Admin\CeritaController::class, 'edit'])->name('cerita.edit');
+        Route::post('update/{cerita}', [\App\Http\Controllers\Admin\CeritaController::class, 'update'])->name('cerita.update');
+        Route::post('delete/{cerita}', [\App\Http\Controllers\Admin\CeritaController::class, 'destroy'])->name('cerita.destroy');
+        Route::post('delete-multiple', [\App\Http\Controllers\Admin\CeritaController::class, 'deleteMultiple'])->name('cerita.delete-multiple');
+        Route::post('upload-background', [\App\Http\Controllers\Admin\CeritaController::class, 'uploadBackground'])->name('cerita.upload-background');
+
+        // Overlays
+        Route::post('{cerita}/overlays', [\App\Http\Controllers\Admin\CeritaController::class, 'storeOverlay'])->name('cerita.overlays.store');
+        Route::post('overlays/{overlay}', [\App\Http\Controllers\Admin\CeritaController::class, 'updateOverlay'])->name('cerita.overlays.update');
+        Route::post('overlays/{overlay}/delete', [\App\Http\Controllers\Admin\CeritaController::class, 'deleteOverlay'])->name('cerita.overlays.delete');
+    });
+
 
     // Products (Admin)
     Route::prefix('products')->group(function () {
@@ -87,9 +106,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('{product}/overlays', [PariwisataProductController::class, 'storeOverlay'])->name('product.overlays.store');
         Route::post('overlays/{overlay}', [PariwisataProductController::class, 'updateOverlay'])->name('product.overlays.update');
         Route::post('overlays/{overlay}/delete', [PariwisataProductController::class, 'deleteOverlay'])->name('product.overlays.delete');
-
-        // Metadata
-        Route::post('{product}/metadata', [PariwisataProductController::class, 'storeMetadata'])->name('product.metadata.store');
     });
 
     // Access from pariwisata action: /pariwisata/{pariwisata}/product
@@ -100,14 +116,40 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/', [SettingController::class, 'getSettings'])->name('settings.get');
     });
 
-    // Preference Values (Admin)
-    Route::prefix('preferences')->group(function () {
-        Route::get('/', [PreferenceValueController::class, 'index'])->name('preferences.index');
-        Route::get('create', [PreferenceValueController::class, 'create'])->name('preferences.create');
-        Route::post('store', [PreferenceValueController::class, 'store'])->name('preferences.store');
-        Route::get('edit/{preference}', [PreferenceValueController::class, 'edit'])->name('preferences.edit');
-        Route::post('update/{preference}', [PreferenceValueController::class, 'update'])->name('preferences.update');
-        Route::post('delete/{preference}', [PreferenceValueController::class, 'destroy'])->name('preferences.destroy');
+    // Preference Activity Levels (Admin)
+    Route::prefix('preference-activity-levels')->group(function () {
+        Route::get('/', [PreferenceActivityLevelController::class, 'index'])->name('preference-activity-levels.index');
+        Route::post('store', [PreferenceActivityLevelController::class, 'store'])->name('preference-activity-levels.store');
+        Route::post('delete-multiple', [PreferenceActivityLevelController::class, 'deleteMultiple'])->name('preference-activity-levels.delete-multiple');
+        Route::post('delete', [PreferenceActivityLevelController::class, 'delete'])->name('preference-activity-levels.delete');
+        Route::post('update', [PreferenceActivityLevelController::class, 'update'])->name('preference-activity-levels.update');
+    });
+
+    // Preference Price Ranges (Admin)
+    Route::prefix('preference-price-ranges')->group(function () {
+        Route::get('/', [PreferencePriceRangeController::class, 'index'])->name('preference-price-ranges.index');
+        Route::post('store', [PreferencePriceRangeController::class, 'store'])->name('preference-price-ranges.store');
+        Route::post('delete-multiple', [PreferencePriceRangeController::class, 'deleteMultiple'])->name('preference-price-ranges.delete-multiple');
+        Route::post('delete', [PreferencePriceRangeController::class, 'delete'])->name('preference-price-ranges.delete');
+        Route::post('update', [PreferencePriceRangeController::class, 'update'])->name('preference-price-ranges.update');
+    });
+
+    // Preference Visit Times (Admin)
+    Route::prefix('preference-visit-times')->group(function () {
+        Route::get('/', [PreferenceVisitTimeController::class, 'index'])->name('preference-visit-times.index');
+        Route::post('store', [PreferenceVisitTimeController::class, 'store'])->name('preference-visit-times.store');
+        Route::post('delete-multiple', [PreferenceVisitTimeController::class, 'deleteMultiple'])->name('preference-visit-times.delete-multiple');
+        Route::post('delete', [PreferenceVisitTimeController::class, 'delete'])->name('preference-visit-times.delete');
+        Route::post('update', [PreferenceVisitTimeController::class, 'update'])->name('preference-visit-times.update');
+    });
+
+    // Preference Destination Types (Admin)
+    Route::prefix('preference-destination-types')->group(function () {
+        Route::get('/', [PreferenceDestinationTypeController::class, 'index'])->name('preference-destination-types.index');
+        Route::post('store', [PreferenceDestinationTypeController::class, 'store'])->name('preference-destination-types.store');
+        Route::post('delete-multiple', [PreferenceDestinationTypeController::class, 'deleteMultiple'])->name('preference-destination-types.delete-multiple');
+        Route::post('delete', [PreferenceDestinationTypeController::class, 'delete'])->name('preference-destination-types.delete');
+        Route::post('update', [PreferenceDestinationTypeController::class, 'update'])->name('preference-destination-types.update');
     });
 });
 
