@@ -25,6 +25,11 @@ class Pariwisata extends Model
         return $this->hasMany(PariwisataProduct::class, 'pariwisata_id');
     }
 
+    public function cerita()
+    {
+        return $this->hasMany(Cerita::class, 'pariwisata_id');
+    }
+
     public function metadata()
     {
         return $this->hasOne(PariwisataMetadata::class);

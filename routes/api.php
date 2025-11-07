@@ -5,16 +5,31 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\PariwisataController;
 use App\Http\Controllers\Api\DestinationController;
 use App\Http\Controllers\Api\SettingController;
+use App\Http\Controllers\Api\WisataController;
+use App\Http\Controllers\Api\PreferenceController;
 use App\Http\Controllers\MetadataOptionsController;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
 })->middleware('auth:sanctum');
 
-// Pariwisata API
-Route::get('/pariwisata', [PariwisataController::class, 'index']);
-Route::get('/pariwisata/{slug}', [PariwisataController::class, 'show']);
 
+// ===== Wisata API (New Comprehensive API) =====
+// Pariwisata/Destinations
+Route::get('/wisata', [WisataController::class, 'index']);
+// Route::get('/wisata/{slug}', [WisataController::class, 'show']);
+
+// ===== Preference API =====
+Route::prefix('preferences')->group(function () {
+    Route::get('/activity-levels', [PreferenceController::class, 'activityLevels']);
+    Route::get('/price-ranges', [PreferenceController::class, 'priceRanges']);
+    Route::get('/visit-times', [PreferenceController::class, 'visitTimes']);
+    Route::get('/destination-types', [PreferenceController::class, 'destinationTypes']);
+    Route::get('/all', [PreferenceController::class, 'all']);
+});
+
+
+// ===== Legacy API (Backward Compatibility) =====
 // New Destinations API (nested products)
 Route::get('/destinations', [DestinationController::class, 'index']);
 Route::get('/destinations/{slug}', [DestinationController::class, 'show']);
@@ -23,5 +38,6 @@ Route::get('/destinations/{slug}', [DestinationController::class, 'show']);
 Route::get('/setting', [SettingController::class, 'index']);
 Route::match(['post', 'put', 'patch'], '/setting', [SettingController::class, 'update'])->middleware('auth:sanctum');
 
-// Metadata Options API
-Route::get('/metadata-options', [MetadataOptionsController::class, 'index']);
+// Pariwisata API
+Route::get('/pariwisata', [PariwisataController::class, 'index']);
+Route::get('/pariwisata/{slug}', [PariwisataController::class, 'show']);
