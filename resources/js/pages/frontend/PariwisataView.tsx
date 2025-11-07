@@ -54,7 +54,7 @@ interface PariwisataType {
   metadata?: MetadataType;
 }
 
-interface ProductType extends PariwisataType {}
+interface ProductType extends PariwisataType { }
 
 interface DestinationType extends PariwisataType {
   products?: ProductType[];
@@ -93,13 +93,14 @@ interface Props {
 
 
 export default function PariwisataView({ pariwisata, destinations, setting, metadataOptions, metadataDetails }: Props) {
+
   // Check if we have 'open' query parameter for direct link mode
   const [isDirectLink, setIsDirectLink] = useState(false);
   useEffect(() => {
     try {
       const params = new URLSearchParams(window.location.search);
       setIsDirectLink(!!params.get('open'));
-    } catch {}
+    } catch { }
   }, []);
 
   // ===== Personalization State (localStorage backed) =====
@@ -112,20 +113,21 @@ export default function PariwisataView({ pariwisata, destinations, setting, meta
   const [recent, setRecent] = useState<RecentItem[]>(() => {
     try { return JSON.parse(safeStorage?.getItem('jp_recent') || '[]') as RecentItem[]; } catch { return []; }
   });
-  useEffect(() => { try { safeStorage?.setItem('jp_recent', JSON.stringify(recent.slice(0, 6))); } catch {} }, [recent]);
+  useEffect(() => { try { safeStorage?.setItem('jp_recent', JSON.stringify(recent.slice(0, 6))); } catch { } }, [recent]);
 
   const [labelCounts, setLabelCounts] = useState<Record<string, number>>(() => {
     try { return JSON.parse(safeStorage?.getItem('jp_label_counts') || '{}') as Record<string, number>; } catch { return {}; }
   });
-  useEffect(() => { try { safeStorage?.setItem('jp_label_counts', JSON.stringify(labelCounts)); } catch {} }, [labelCounts]);
+  useEffect(() => { try { safeStorage?.setItem('jp_label_counts', JSON.stringify(labelCounts)); } catch { } }, [labelCounts]);
 
   // Normalize data: prefer destinations; fallback to pariwisata -> destinations with single product
   const normalizedDestinations: DestinationType[] = (destinations && destinations.length > 0)
     ? destinations
     : (pariwisata || []).map(p => ({
-        ...p,
-        products: (p as any).products && (p as any).products.length > 0 ? (p as any).products : [{ ...p }]
-      }));
+      ...p,
+      products: (p as any).products && (p as any).products.length > 0 ? (p as any).products : [{ ...p }]
+    }));
+
 
   // Destination types for onboarding: prefer database-driven list from metadataDetails
   const allLabels = (metadataDetails?.destination_types && metadataDetails.destination_types.length > 0)
@@ -134,7 +136,7 @@ export default function PariwisataView({ pariwisata, destinations, setting, meta
   const [prefLabels, setPrefLabels] = useState<string[]>(() => {
     try { return JSON.parse(safeStorage?.getItem('jp_pref_labels') || '[]') as string[]; } catch { return []; }
   });
-  useEffect(() => { try { safeStorage?.setItem('jp_pref_labels', JSON.stringify(prefLabels)); } catch {} }, [prefLabels]);
+  useEffect(() => { try { safeStorage?.setItem('jp_pref_labels', JSON.stringify(prefLabels)); } catch { } }, [prefLabels]);
 
   // Metadata preferences for personalization
   const [activityLevels, setActivityLevels] = useState<string[]>(() => {
@@ -150,7 +152,7 @@ export default function PariwisataView({ pariwisata, destinations, setting, meta
       safeStorage?.setItem('jp_activity_levels', JSON.stringify(activityLevels));
       // Keep legacy key updated with first choice for backward compat (optional)
       if (activityLevels[0]) safeStorage?.setItem('jp_activity_level', activityLevels[0]);
-    } catch {}
+    } catch { }
   }, [activityLevels]);
 
   const [priceRanges, setPriceRanges] = useState<string[]>(() => {
@@ -165,7 +167,7 @@ export default function PariwisataView({ pariwisata, destinations, setting, meta
     try {
       safeStorage?.setItem('jp_price_ranges', JSON.stringify(priceRanges));
       if (priceRanges[0]) safeStorage?.setItem('jp_price_range', priceRanges[0]);
-    } catch {}
+    } catch { }
   }, [priceRanges]);
 
   const [bestSeasons, setBestSeasons] = useState<string[]>(() => {
@@ -180,17 +182,17 @@ export default function PariwisataView({ pariwisata, destinations, setting, meta
     try {
       safeStorage?.setItem('jp_best_seasons', JSON.stringify(bestSeasons));
       if (bestSeasons[0]) safeStorage?.setItem('jp_best_season', bestSeasons[0]);
-    } catch {}
+    } catch { }
   }, [bestSeasons]);
 
   const [reducedMotion, setReducedMotion] = useState<boolean>(() => {
     try { return (safeStorage?.getItem('jp_motion') || 'high') === 'reduced'; } catch { return false; }
   });
-  useEffect(() => { try { safeStorage?.setItem('jp_motion', reducedMotion ? 'reduced' : 'high'); } catch {} }, [reducedMotion]);
+  useEffect(() => { try { safeStorage?.setItem('jp_motion', reducedMotion ? 'reduced' : 'high'); } catch { } }, [reducedMotion]);
 
   // Only show onboarding if not a direct link
   const [onboardingOpen, setOnboardingOpen] = useState<boolean>(() => !isDirectLink);
-  
+
   // Update onboarding state when isDirectLink changes
   useEffect(() => {
     if (isDirectLink) {
@@ -216,7 +218,7 @@ export default function PariwisataView({ pariwisata, destinations, setting, meta
   const [selectedProductIdx, setSelectedProductIdx] = useState<Record<string, number>>(() => {
     try { return JSON.parse(safeStorage?.getItem('jp_selected_product_idx') || '{}') as Record<string, number>; } catch { return {}; }
   });
-  useEffect(() => { try { safeStorage?.setItem('jp_selected_product_idx', JSON.stringify(selectedProductIdx)); } catch {} }, [selectedProductIdx]);
+  useEffect(() => { try { safeStorage?.setItem('jp_selected_product_idx', JSON.stringify(selectedProductIdx)); } catch { } }, [selectedProductIdx]);
 
   const setProductForSlug = (slug: string, idx: number) => setSelectedProductIdx(prev => ({ ...prev, [slug]: idx }));
 
@@ -227,7 +229,8 @@ export default function PariwisataView({ pariwisata, destinations, setting, meta
     const products = dest.products && dest.products.length > 0 ? dest.products : [{ ...dest } as ProductType];
     const activeIdx = Math.min(Math.max(0, selectedProductIdx[dest.slug] ?? 0), products.length - 1);
     const active = products[activeIdx];
-    const overlays = (active.overlays && active.overlays.length > 0 ? active.overlays : dest.overlays) || [];
+  // Overlay source: keep destination overlays for the wisata page to avoid unexpected replacement by product overlays
+  const overlays = dest.overlays || [];
     const alignVal = (active.align || dest.align) as 'left' | 'right';
 
     // Calculate personalization across ALL products to surface at destination level
@@ -259,25 +262,25 @@ export default function PariwisataView({ pariwisata, destinations, setting, meta
       : (dest.label ? [dest.label] : []);
     const destTypeMatch = prefLabels.length > 0 && destTypeTitles.some(t => prefLabels.includes(t));
 
-  // Destination-level score uses best product score (primary), with a small boost for destination type match
-  const productScore = bestMatch?.score || 0;
-  let personalizationScore = productScore;
+    // Destination-level score uses best product score (primary), with a small boost for destination type match
+    const productScore = bestMatch?.score || 0;
+    let personalizationScore = productScore;
     if (destTypeMatch) personalizationScore += 6; // boost if jenis destinasi cocok
     const badge = bestMatch?.badge || null;
     const detailBadgesBase = bestMatch?.details || [];
     const detailBadges = destTypeMatch
       ? [{ label: 'Jenis Destinasi Cocok', color: 'bg-indigo-500', icon: '🏷️' }, ...detailBadgesBase]
       : detailBadgesBase;
-    
+
 
     return {
       id: dest.slug || `section-${index}`,
       slug: dest.slug,
       label: dest.label ?? undefined,
-    title: dest.title,
-  navLabel: dest.label || (dest.title ? dest.title.substring(0, 8) : 'Destinasi'),
-    subtitle: dest.subtitle,
-    bg: dest.background_url,
+      title: dest.title,
+      navLabel: dest.label || (dest.title ? dest.title.substring(0, 8) : 'Destinasi'),
+      subtitle: dest.subtitle,
+      bg: dest.background_url,
       overlays: overlays.map(overlay => ({
         url: overlay.overlay_url,
         position_horizontal: overlay.position_horizontal,
@@ -286,7 +289,7 @@ export default function PariwisataView({ pariwisata, destinations, setting, meta
         width: overlay.width,
         height: overlay.height
       })),
-  align: dest.align,
+      align: dest.align,
       badgePosition: (alignVal === 'right' ? 'top-right' : 'top-left'),
       content: (
         <div className={"max-w-xl space-y-4 " + (alignVal === 'right' ? 'ml-auto text-right' : '')}>
@@ -299,7 +302,7 @@ export default function PariwisataView({ pariwisata, destinations, setting, meta
               </span>
             </div>
           )}
-          
+
           {/* Detail badges dari produk terbaik dan badge cocok/sangat cocok */}
           {(badge || detailBadges.length > 0) && (
             <div className={"flex gap-2 flex-wrap " + (alignVal === 'right' ? 'justify-end' : '')}>
@@ -320,14 +323,18 @@ export default function PariwisataView({ pariwisata, destinations, setting, meta
           <p className="text-white/90">{dest.content}</p>
         </div>
       ),
-  ctaHref: dest.slug ? `/${dest.slug}/product` : (dest.cta_href || '#'),
-      ctaLabel: 'Lihat Produk',
+      ctaHref: dest.slug ? `/${dest.slug}/cerita` : (dest.cta_href || '#'),
+      ctaLabel: 'Lihat Cerita',
       personalizationScore, // combined score for sorting (product primary + small boost)
       productScore,
       destTypeMatch,
     } as SectionData & { personalizationScore: number };
   });
+
+  console.log(baseSections);
   
+  
+
   // Personalized ordering: sort by personalization score + label preferences + click history
   const SECTIONS = [...baseSections].sort((a, b) => {
     // 1) Product score first (key driver)
@@ -350,8 +357,11 @@ export default function PariwisataView({ pariwisata, destinations, setting, meta
     const scoreB = (b as any).personalizationScore || 0;
     return scoreB - scoreA;
   });
+
+  // console.log(SECTIONS);
+
   const isRowLayout = false;
-  
+
   // ==== Asset Preloader (background & overlays) ====
   const [progress, setProgress] = useState(0); // 0..1
   const [ready, setReady] = useState(false);
@@ -373,7 +383,7 @@ export default function PariwisataView({ pariwisata, destinations, setting, meta
     if (urls.length === 0) { setProgress(1); setReady(true); return; }
     let loaded = 0;
     const start = performance.now();
-    
+
     // Preload with higher priority and proper caching
     const loadPromises = urls.map(u => {
       return new Promise<void>((resolve) => {
@@ -382,7 +392,7 @@ export default function PariwisataView({ pariwisata, destinations, setting, meta
         img.crossOrigin = 'anonymous';
         img.decoding = 'async';
         img.loading = 'eager';
-        
+
         const done = () => {
           loaded += 1;
           setProgress(loaded / urls.length);
@@ -394,12 +404,12 @@ export default function PariwisataView({ pariwisata, destinations, setting, meta
           }
           resolve();
         };
-        img.onload = done; 
-        img.onerror = done; 
+        img.onload = done;
+        img.onerror = done;
         img.src = u;
       });
     });
-    
+
     // Force browser to cache these images immediately
     Promise.all(loadPromises).then(() => {
       // Additional caching optimization
@@ -443,7 +453,7 @@ export default function PariwisataView({ pariwisata, destinations, setting, meta
           }
         }
       }
-    } catch {}
+    } catch { }
   }, [ready, normalizedDestinations]);
 
   // Konfigurasi kecepatan animasi (mudah diubah)
@@ -502,14 +512,14 @@ export default function PariwisataView({ pariwisata, destinations, setting, meta
     if (!ready) return;
     const slug = lastSlugRef.current;
     if (!slug) return;
-    
+
     // Trim stale refs immediately to match new SECTIONS
     sectionRefs.current.length = SECTIONS.length;
-    
+
     // Find new index for the last visible slug
     const idx = SECTIONS.findIndex(s => s.id === slug);
     const targetIdx = idx >= 0 ? idx : 0;
-    
+
     // Defer to next frame so DOM updates
     const id = requestAnimationFrame(() => {
       // If we're in carousel mode, update currentSlide directly without scroll
@@ -529,11 +539,11 @@ export default function PariwisataView({ pariwisata, destinations, setting, meta
         setActive(targetIdx);
         return;
       }
-      
+
       isStabilizingRef.current = true;
       const prevSnap = container.style.scrollSnapType;
       container.style.scrollSnapType = 'none';
-      
+
       // Instant scroll to prevent NavDots from jumping
       container.scrollTop = targetEl.offsetTop;
       setActive(targetIdx);
@@ -545,7 +555,7 @@ export default function PariwisataView({ pariwisata, destinations, setting, meta
       }, 250);
     });
     return () => cancelAnimationFrame(id);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prefLabels, labelCounts, activityLevels, priceRanges, bestSeasons]);
 
   const scrollToIndex = (idx: number, opts?: { overshoot?: boolean; behavior?: ScrollBehavior }) => {
@@ -554,18 +564,18 @@ export default function PariwisataView({ pariwisata, destinations, setting, meta
       // Carousel navigation
       const carousel = carouselRef.current;
       if (!carousel) return;
-      
+
       if (idx < 0) idx = 0;
       if (idx >= SECTIONS.length) idx = SECTIONS.length - 1;
-      
+
       setCurrentSlide(idx);
       setActive(idx);
-      
+
       return;
     }
-    
+
     // Original column layout logic (simplified for smooth and light scrolling)
-  const container = containerRef.current;
+    const container = containerRef.current;
     const targetEl = sectionRefs.current[idx];
     if (!container || !targetEl) return;
     // Prefer native smooth scroll for best performance across devices
@@ -577,64 +587,64 @@ export default function PariwisataView({ pariwisata, destinations, setting, meta
   // Event listeners for both layouts
   useEffect(() => {
     if (!ready) return;
-    
+
     if (isRowLayout) {
       // Carousel navigation - simplified
       const handleKeyDown = (e: KeyboardEvent) => {
         if (isAnimatingRef.current) return;
-        
+
         let nextSlide = currentSlide;
         if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
           nextSlide = Math.max(0, currentSlide - 1);
         } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
           nextSlide = Math.min(SECTIONS.length - 1, currentSlide + 1);
         }
-        
+
         if (nextSlide !== currentSlide) {
           scrollToIndex(nextSlide);
         }
       };
-      
+
       const handleWheel = (e: WheelEvent) => {
         if (isAnimatingRef.current) return;
-        
+
         e.preventDefault();
         const direction = Math.sign(e.deltaY);
         const nextSlide = Math.max(0, Math.min(SECTIONS.length - 1, currentSlide + direction));
-        
+
         if (nextSlide !== currentSlide) {
           scrollToIndex(nextSlide);
         }
       };
-      
+
       // Touch/swipe support - simplified
       let touchStartX = 0;
       let touchStartTime = 0;
-      
+
       const handleTouchStart = (e: TouchEvent) => {
         touchStartX = e.touches[0].clientX;
         touchStartTime = Date.now();
       };
-      
+
       const handleTouchEnd = (e: TouchEvent) => {
         if (isAnimatingRef.current) return;
-        
+
         const touchEndX = e.changedTouches[0].clientX;
         const touchEndTime = Date.now();
         const deltaX = touchEndX - touchStartX;
         const deltaTime = touchEndTime - touchStartTime;
-        
+
         // Only trigger if it's a quick swipe with sufficient distance
         if (deltaTime < 300 && Math.abs(deltaX) > 80) {
           const direction = deltaX > 0 ? -1 : 1; // Swipe right = previous, swipe left = next
           const nextSlide = Math.max(0, Math.min(SECTIONS.length - 1, currentSlide + direction));
-          
+
           if (nextSlide !== currentSlide) {
             scrollToIndex(nextSlide);
           }
         }
       };
-      
+
       document.addEventListener('keydown', handleKeyDown);
       const carousel = carouselRef.current;
       if (carousel) {
@@ -642,7 +652,7 @@ export default function PariwisataView({ pariwisata, destinations, setting, meta
         carousel.addEventListener('touchstart', handleTouchStart, { passive: true });
         carousel.addEventListener('touchend', handleTouchEnd, { passive: true });
       }
-      
+
       return () => {
         document.removeEventListener('keydown', handleKeyDown);
         if (carousel) {
@@ -652,7 +662,7 @@ export default function PariwisataView({ pariwisata, destinations, setting, meta
         }
       };
     }
-    
+
     // Original column layout listeners
     const el = containerRef.current;
     if (!el) return;
@@ -689,7 +699,7 @@ export default function PariwisataView({ pariwisata, destinations, setting, meta
   // ===== Mobile natural snap assist (sederhana anti-glitch) =====
   useEffect(() => {
     if (!ready || isRowLayout) return; // skip for carousel mode
-    const el = containerRef.current; 
+    const el = containerRef.current;
     if (!el) return;
     const isCoarse = window.matchMedia('(pointer:coarse)').matches; if (!isCoarse) return;
     let idleTimer: number | null = null;
@@ -751,10 +761,10 @@ export default function PariwisataView({ pariwisata, destinations, setting, meta
       {isRowLayout ? (
         // Carousel Layout
         <div className="h-screen w-screen overflow-hidden relative">
-          <Header 
-            active={currentSlide} 
-            onJump={scrollToIndex} 
-            sections={SECTIONS} 
+          <Header
+            active={currentSlide}
+            onJump={scrollToIndex}
+            sections={SECTIONS}
             brand="J-PiMS"
             actions={(
               <div className="flex items-center gap-2">
@@ -773,12 +783,12 @@ export default function PariwisataView({ pariwisata, destinations, setting, meta
                       href={route('search')}
                       className="px-3 h-9 rounded-md border border-white/15 bg-white/5 hover:bg-white/15 text-white/80 hover:text-white text-xs font-medium transition flex items-center gap-2"
                     >
-                      <svg 
-                        xmlns="http://www.w3.org/2000/svg" 
-                        fill="none" 
-                        viewBox="0 0 24 24" 
-                        strokeWidth={2} 
-                        stroke="currentColor" 
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        strokeWidth={2}
+                        stroke="currentColor"
                         className="w-4 h-4"
                       >
                         <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
@@ -801,17 +811,17 @@ export default function PariwisataView({ pariwisata, destinations, setting, meta
               </div>
             )}
           />
-          <NavDots 
-            count={SECTIONS.length} 
-            active={currentSlide} 
+          <NavDots
+            count={SECTIONS.length}
+            active={currentSlide}
             onJump={scrollToIndex}
             sections={SECTIONS}
           />
-          
+
           <div
             ref={carouselRef}
             className="flex h-full w-full carousel-container"
-            style={{ 
+            style={{
               transform: `translateX(-${currentSlide * 100}%)`,
               transition: isAnimatingRef.current ? 'none' : 'transform 0.6s cubic-bezier(0.25, 0.85, 0.35, 1)'
             }}
@@ -828,10 +838,10 @@ export default function PariwisataView({ pariwisata, destinations, setting, meta
               </div>
             ))}
           </div>
-          <ArrowNav 
-            active={currentSlide} 
-            onJump={scrollToIndex} 
-            total={SECTIONS.length} 
+          <ArrowNav
+            active={currentSlide}
+            onJump={scrollToIndex}
+            total={SECTIONS.length}
           />
           <CursorBullet />
         </div>
@@ -843,10 +853,10 @@ export default function PariwisataView({ pariwisata, destinations, setting, meta
           className="h-screen w-screen overflow-y-scroll snap-y snap-mandatory scrollbar-none relative bg-black"
           style={{ scrollPaddingTop: '56px' }}
         >
-          <Header 
-            active={active} 
-            onJump={scrollToIndex} 
-            sections={SECTIONS} 
+          <Header
+            active={active}
+            onJump={scrollToIndex}
+            sections={SECTIONS}
             brand="J-PiMS"
             actions={(
               <div className="flex items-center gap-2">
@@ -865,12 +875,12 @@ export default function PariwisataView({ pariwisata, destinations, setting, meta
                       href={route('search')}
                       className="px-3 h-9 rounded-md border border-white/15 bg-white/5 hover:bg-white/15 text-white/80 hover:text-white text-xs font-medium transition flex items-center gap-2"
                     >
-                      <svg 
-                        xmlns="http://www.w3.org/2000/svg" 
-                        fill="none" 
-                        viewBox="0 0 24 24" 
-                        strokeWidth={2} 
-                        stroke="currentColor" 
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        strokeWidth={2}
+                        stroke="currentColor"
                         className="w-4 h-4"
                       >
                         <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
@@ -893,7 +903,7 @@ export default function PariwisataView({ pariwisata, destinations, setting, meta
             )}
           />
           <NavDots count={SECTIONS.length} active={active} onJump={scrollToIndex} sections={SECTIONS} />
-          
+
           {SECTIONS.map((s, i) => (
             <Section
               key={s.id}

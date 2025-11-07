@@ -23,12 +23,15 @@ class DatabaseSeeder extends Seeder
         
         $this->call([
             SettingSeeder::class,
-            PariwisataSeeder::class,
-            CeritaSeeder::class,
+            // Seed preference dictionaries first so downstream seeders can attach relations
             PreferenceActivityLevelSeeder::class,
             PreferencePriceRangeSeeder::class,
             PreferenceVisitTimeSeeder::class,
             PreferenceDestinationTypeSeeder::class,
+            // Then seed destinations/products which will attach the above preferences
+            PariwisataSeeder::class,
+            // Finally seed cerita that reference the destinations
+            CeritaSeeder::class,
         ]);
     }
 }

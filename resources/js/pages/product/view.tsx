@@ -10,8 +10,12 @@ import { DataTable } from './data-table';
 export default function ProductList() {
   const { data, pariwisata } = usePage().props as unknown as { data: ProductType[]; pariwisata?: { id: number; title: string; slug: string } };
   const breadcrumbs: BreadcrumbItem[] = pariwisata
-    ? [ { title: 'Pariwisata', href: '/pariwisata' }, { title: pariwisata.title, href: route('pariwisata.edit', pariwisata.id) }, { title: 'Products', href: route('product.by-pariwisata', pariwisata.id) } ]
-    : [ { title: 'Products', href: '/products' } ];
+    ? [
+        { title: 'Pariwisata', href: route('pariwisata.index') },
+        { title: pariwisata.title, href: route('pariwisata.edit', pariwisata.id) },
+        { title: 'Products', href: route('product.by-pariwisata', pariwisata.id) }
+      ]
+    : [ { title: 'Products', href: route('product.index') } ];
 
   return (
     <AppLayout breadcrumbs={breadcrumbs}>
@@ -23,7 +27,7 @@ export default function ProductList() {
             <p className="text-muted-foreground">Kelola produk untuk {pariwisata ? `destinasi ini` : 'setiap destinasi'}.</p>
           </div>
           <div className="flex gap-2">
-            <Button onClick={() => router.visit(pariwisata ? `${route('product.create')}?pariwisata_id=${pariwisata.id}` : route('product.create'))} className="space-x-1">
+            <Button onClick={() => router.visit(pariwisata ? route('product.create-for-pariwisata', pariwisata.id) : route('product.create'))} className="space-x-1">
               <span>Create</span>
               <Plus size={18} />
             </Button>

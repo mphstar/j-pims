@@ -16,6 +16,8 @@ interface OverlayType {
   position_horizontal: 'left' | 'center' | 'right' | null;
   position_vertical: 'top' | 'center' | 'bottom' | null;
   object_fit: 'contain' | 'cover' | 'fill' | 'none' | 'scale-down' | 'crop' | null;
+  width?: number | null;
+  height?: number | null;
   __file?: File;
   __unsaved?: boolean;
   __dirty?: boolean;
@@ -145,8 +147,8 @@ export default function ProductFormBase({
     router.post(url, submitData, {
       onSuccess: () => {
         toast.success(editing ? 'Data updated' : 'Data created');
-        // Redirect to product list of the parent destination
-        if (data.pariwisata_id) {
+        // For edit, return to list; for create, rely on server redirect to edit page
+        if (editing && data.pariwisata_id) {
           router.visit(route('product.by-pariwisata', data.pariwisata_id));
         }
       },
@@ -157,9 +159,9 @@ export default function ProductFormBase({
 
   const uploadOverlay = (file: File) => {
     if (!item?.id) { toast.error('Simpan dahulu sebelum menambah overlay'); return; }
-    if (file.size > 2 * 1024 * 1024) { toast.error('Ukuran maksimal 2MB'); return; }
+    // if (file.size > 2 * 1024 * 1024) { toast.error('Ukuran maksimal 2MB'); return; }
     const blobUrl = URL.createObjectURL(file);
-    setOverlayList(prev => [...prev, { id: -Date.now(), overlay_url: blobUrl, position_horizontal: null, position_vertical: null, object_fit: null, __file: file, __unsaved: true, __dirty: true } as any]);
+    setOverlayList(prev => [...prev, { id: -Date.now(), overlay_url: blobUrl, position_horizontal: null, position_vertical: null, object_fit: null, width: null, height: null, __file: file, __unsaved: true, __dirty: true } as any]);
     toast.info('Overlay ditambahkan (belum disimpan)');
   };
 
@@ -190,10 +192,12 @@ export default function ProductFormBase({
       if (overlay.position_horizontal) formData.append('position_horizontal', overlay.position_horizontal);
       if (overlay.position_vertical) formData.append('position_vertical', overlay.position_vertical);
       if (overlay.object_fit) formData.append('object_fit', overlay.object_fit);
+      if (overlay.width != null) formData.append('width', String(overlay.width));
+      if (overlay.height != null) formData.append('height', String(overlay.height));
       router.post(route('product.overlays.store', item.id), formData, { preserveScroll: true, forceFormData: true, onSuccess: () => toast.success('Overlay dibuat'), onError: () => toast.error('Gagal simpan overlay baru') });
       setOverlayList(prev => prev.map(o => (o.id === overlay.id ? { ...o, __unsaved: false, __dirty: false } : o)));
     } else if (overlay.__dirty) {
-      router.post(route('product.overlays.update', overlay.id), { position_horizontal: overlay.position_horizontal, position_vertical: overlay.position_vertical, object_fit: overlay.object_fit }, { preserveScroll: true, onSuccess: () => toast.success('Overlay disimpan'), onError: () => toast.error('Gagal update overlay') });
+      router.post(route('product.overlays.update', overlay.id), { position_horizontal: overlay.position_horizontal, position_vertical: overlay.position_vertical, object_fit: overlay.object_fit, width: overlay.width, height: overlay.height }, { preserveScroll: true, onSuccess: () => toast.success('Overlay disimpan'), onError: () => toast.error('Gagal update overlay') });
       setOverlayList(prev => prev.map(o => (o.id === overlay.id ? { ...o, __dirty: false } : o)));
     } else {
       toast.info('Tidak ada perubahan');
@@ -240,13 +244,7 @@ export default function ProductFormBase({
       </div>
       <div className={cn('flex flex-1 overflow-hidden', isMobile ? 'flex-col' : '')}>
         <form id='product-form' onSubmit={onSubmit} className={cn('shrink-0 overflow-y-auto border-r p-4 lg:p-6 space-y-4 bg-background', isMobile ? 'w-full border-r-0' : 'w-[430px]')}>
-          <div className='space-y-2'>
-            <Label className='text-sm font-medium required'>Destinasi</Label>
-            <select value={data.pariwisata_id as any} onChange={e => setData('pariwisata_id', Number(e.target.value))} className='border rounded h-9 px-3 text-sm bg-background w-full'>
-              {destinations?.map(d => (<option key={d.id} value={d.id}>{d.title}</option>))}
-            </select>
-            {errors.pariwisata_id && <p className='text-xs text-red-500'>{errors.pariwisata_id as any}</p>}
-          </div>
+          {/* Destinasi field removed per requirement; pariwisata_id is bound internally */}
           <div className='space-y-2'>
             <Label className='text-sm font-medium required'>Title</Label>
             <Input value={data.title} onChange={e => setData('title', e.target.value)} required />
@@ -526,6 +524,32 @@ export default function ProductFormBase({
                                   </SelectContent>
                                 </Select>
                               </div>
+                              <div className='grid grid-cols-2 gap-2'>
+                                <div className='space-y-1'>
+                                  <Label className='text-[10px]'>Width (px or %)</Label>
+                                  <Input
+                                    type='number'
+                                    min='0'
+                                    step='0.01'
+                                    value={ov.width ?? ''}
+                                    onChange={(e) => updateOverlayLocal(ov.id, { width: e.target.value ? parseFloat(e.target.value) : null })}
+                                    className='h-7 text-[10px] px-2'
+                                    placeholder='Auto'
+                                  />
+                                </div>
+                                <div className='space-y-1'>
+                                  <Label className='text-[10px]'>Height (px)</Label>
+                                  <Input
+                                    type='number'
+                                    min='1'
+                                    value={ov.height ?? ''}
+                                    onChange={(e) => updateOverlayLocal(ov.id, { height: e.target.value ? parseInt(e.target.value) : null })}
+                                    className='h-7 text-[10px] px-2'
+                                    placeholder='Auto'
+                                  />
+                                </div>
+                              </div>
+                              <p className='text-[10px] text-muted-foreground'>Tip: untuk responsif, isi width 1..100 (sebagai %) atau 0..1 (mis. 0.4 = 40%). Kosongkan height agar tinggi mengikuti rasio asli.</p>
                             </div>
                             <div className='flex gap-1 pt-1'>
                               <Button size='sm' variant='outline' onClick={() => saveOverlay(ov.id)} className='h-6 px-2 text-[10px]'>Save</Button>
@@ -558,21 +582,67 @@ export default function ProductFormBase({
   );
 }
 
+// OverlayAligned component, matching CeritaFormBase reference for exact preview parity
 const OverlayAligned: React.FC<{ overlay: OverlayType }> = ({ overlay }) => {
   const style: React.CSSProperties = { position: 'absolute' };
-  if (overlay.position_horizontal === 'left') style.left = '0';
-  else if (overlay.position_horizontal === 'right') style.right = '0';
-  else style.left = '50%';
-  if (overlay.position_vertical === 'top') style.top = '0';
-  else if (overlay.position_vertical === 'bottom') style.bottom = '0';
-  else style.top = '50%';
+  // Horizontal
+  if (overlay.position_horizontal === 'left') {
+    style.left = '0';
+  } else if (overlay.position_horizontal === 'right') {
+    style.right = '0';
+  } else if (overlay.position_horizontal === 'center') {
+    style.left = '50%';
+  } else {
+    // default center if nothing chosen
+    style.left = '50%';
+  }
+  // Vertical
+  if (overlay.position_vertical === 'top') {
+    style.top = '0';
+  } else if (overlay.position_vertical === 'bottom') {
+    style.bottom = '0';
+  } else if (overlay.position_vertical === 'center') {
+    style.top = '50%';
+  } else {
+    // default top
+    style.top = '0';
+  }
+  // Translate adjustments if centered
   const translateX = overlay.position_horizontal === 'center' || overlay.position_horizontal == null ? '-50%' : '0';
   const translateY = overlay.position_vertical === 'center' ? '-50%' : '0';
   style.transform = `translate(${translateX}, ${translateY})`;
+
+  // Size: support responsive % width
+  if (overlay.width != null) {
+    const w = overlay.width as number;
+    if (w > 0 && w <= 1) {
+      (style as any).width = `${w * 100}%`;
+    } else if (w > 0 && w <= 100) {
+      (style as any).width = `${w}%`;
+    } else if (w > 0) {
+      (style as any).width = `${w}px`;
+    }
+  }
+  if (overlay.height != null && (overlay.height as number) > 0) (style as any).height = `${overlay.height}px`;
+
+  // Map custom 'crop' to CSS 'cover'
   const fit = overlay.object_fit === 'crop' ? 'cover' : (overlay.object_fit ?? 'contain');
+
+  // Image sizing logic for height-only cases
+  const widthSet = overlay.width != null && (overlay.width as number) > 0;
+  const heightSet = overlay.height != null && (overlay.height as number) > 0;
+  const imgStyle: React.CSSProperties = {
+    objectFit: fit,
+    width: widthSet ? '100%' : (heightSet ? 'auto' : '100%'),
+    height: heightSet ? '100%' : 'auto'
+  };
+
+  // Fallback max size if no explicit size set
+  const containerClass = overlay.width || overlay.height ? '' : 'max-w-[240px] max-h-[240px]';
+
   return (
-    <div style={style} className='select-none'>
-      <img src={overlay.overlay_url} draggable={false} style={{ objectFit: fit }} className='pointer-events-none max-w-[240px] max-h-[240px]' />
+    <div style={style} className={`select-none ${containerClass}`}>
+      <img src={overlay.overlay_url} draggable={false} style={imgStyle} className='pointer-events-none' />
     </div>
   );
 };

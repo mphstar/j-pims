@@ -128,7 +128,7 @@ export const columns: ColumnDef<ProductType>[] = [
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
-              <DropdownMenuItem onSelect={() => router.visit(route('product.edit', item.id))}>Edit Data</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => router.visit(route('product.edit-for-pariwisata', [item.pariwisata_id, item.id]))}>Edit Data</DropdownMenuItem>
               <DropdownMenuItem
                 onSelect={() => {
                   if (store.open) store.setOpen(false);

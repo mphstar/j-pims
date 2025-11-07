@@ -12,6 +12,7 @@ class Cerita extends Model
     protected $table = 'cerita';
 
     protected $fillable = [
+        'pariwisata_id',
         'title',
         'label',
         'subtitle',
@@ -26,5 +27,10 @@ class Cerita extends Model
     public function overlays()
     {
         return $this->hasMany(CeritaOverlays::class, 'cerita_id');
+    }
+
+    public function pariwisata()
+    {
+        return $this->belongsTo(Pariwisata::class, 'pariwisata_id');
     }
 }

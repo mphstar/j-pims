@@ -207,7 +207,7 @@ export const columns: ColumnDef<PariwisataType>[] = [
                             >Kelola Produk</DropdownMenuItem>
                             <DropdownMenuItem
                                 onSelect={() => {
-                                    router.visit(route('cerita.index'));
+                                    router.visit(route('cerita.by-pariwisata', payment.id));
                                 }}
                             >Kelola Cerita</DropdownMenuItem>
                             <DropdownMenuItem

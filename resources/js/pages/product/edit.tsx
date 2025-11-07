@@ -5,10 +5,6 @@ import { type BreadcrumbItem } from '@/types';
 import { Button } from '@/components/ui/button';
 import ProductFormBase from './ProductFormBase';
 
-const breadcrumbsBase: BreadcrumbItem[] = [
-  { title: 'Products', href: '/products' },
-];
-
 export default function EditProduct() {
   const { 
     item, 
@@ -19,14 +15,24 @@ export default function EditProduct() {
     visitTimes,
     selectedActivityLevelIds,
     selectedPriceRangeIds,
-    selectedVisitTimeIds
+    selectedVisitTimeIds,
+    pariwisata
   } = usePage().props as any;
-
-  const breadcrumbs: BreadcrumbItem[] = [...breadcrumbsBase, { title: 'Edit', href: '#' }];
+  const breadcrumbs: BreadcrumbItem[] = pariwisata
+    ? [
+        { title: 'Pariwisata', href: route('pariwisata.index') },
+        { title: pariwisata.title, href: route('pariwisata.edit', pariwisata.id) },
+        { title: 'Products', href: route('product.by-pariwisata', pariwisata.id) },
+        { title: item?.title || 'Edit', href: '#' }
+      ]
+    : [
+        { title: 'Products', href: route('product.index') },
+        { title: item?.title || 'Edit', href: '#' }
+      ];
 
   return (
     <AppLayout breadcrumbs={breadcrumbs}>
-      <Head title={'Edit: ' + (item?.title || '')} />
+  <Head title={'Edit: ' + (item?.title || '')} />
       <div className="max-w-full">
         <ProductFormBase 
           mode='edit' 

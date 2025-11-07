@@ -3,6 +3,7 @@ import { motion, useInView } from 'framer-motion';
 import { FancyButton } from '../atoms/FancyButton';
 import Flip from '../FlipText';
 import { SectionData } from './Section';
+import { computeOverlayLayout } from '@/utils/overlayLayout';
 
 export const CarouselSection = forwardRef<HTMLDivElement, { data: SectionData; index: number; isActive: boolean; onCtaClick?: (data: SectionData) => void }>(({ data, index, isActive, onCtaClick }, ref) => {
     const { bg, title, subtitle, content, ctaHref, overlays, align = 'left' } = data;
@@ -109,53 +110,13 @@ export const CarouselSection = forwardRef<HTMLDivElement, { data: SectionData; i
                     }}
                 >
                                         {overlays.map((overlay, i) => {
-                                                // Placement logic - same as PariwisataFormBase
-                                                let stylePos: React.CSSProperties = {};
-                                                let translateX = '0';
-                                                let translateY = '0';
-                                                
-                                                // Horizontal
-                                                if (overlay.position_horizontal === 'left') {
-                                                    stylePos.left = '0';
-                                                } else if (overlay.position_horizontal === 'right') {
-                                                    stylePos.right = '0';
-                                                } else if (overlay.position_horizontal === 'center') {
-                                                    stylePos.left = '50%';
-                                                    translateX = '-50%';
-                                                } else {
-                                                    stylePos.left = '50%';
-                                                    translateX = '-50%';
-                                                }
-                                                
-                                                // Vertical
-                                                if (overlay.position_vertical === 'top') {
-                                                    stylePos.top = '0';
-                                                } else if (overlay.position_vertical === 'bottom') {
-                                                    stylePos.bottom = '0';
-                                                } else if (overlay.position_vertical === 'center') {
-                                                    stylePos.top = '50%';
-                                                    translateY = '-50%';
-                                                } else {
-                                                    stylePos.top = '0';
-                                                }
-                                                
-                                                // Size
-                                                if (overlay.width) stylePos.width = `${overlay.width}px`;
-                                                if (overlay.height) stylePos.height = `${overlay.height}px`;
-                                                
-                                                // Fallback max size if no explicit size set
-                                                const containerClass = overlay.width || overlay.height ? '' : 'max-w-[240px] max-h-[240px]';
-                                                
-                                                // Map custom 'crop' semantic to 'cover'
-                                                const fit = overlay.object_fit === 'crop' ? 'cover' : (overlay.object_fit ?? 'contain');
-                                                
-                                                // Image styling
-                                                const imgStyle: React.CSSProperties = {
-                                                    objectFit: fit,
-                                                    width: '100%',
-                                                    height: '100%'
-                                                };
-                                                
+                                                const { containerStyle, imgStyle, containerClass } = computeOverlayLayout({
+                                                  position_horizontal: overlay.position_horizontal,
+                                                  position_vertical: overlay.position_vertical,
+                                                  object_fit: overlay.object_fit,
+                                                  width: overlay.width,
+                                                  height: overlay.height,
+                                                });
                                                 // Animation variants
                                                 const overlayVariants = {
                                                   hidden: { 
@@ -181,12 +142,7 @@ export const CarouselSection = forwardRef<HTMLDivElement, { data: SectionData; i
                                                           ease: [0.25, 0.46, 0.45, 0.94]
                                                         }}
                                                         variants={overlayVariants}
-                                                        style={{
-                                                            position: 'absolute',
-                                                            transform: `translate(${translateX}, ${translateY})`,
-                                                            willChange: 'transform, opacity',
-                                                            ...stylePos,
-                                                        }}
+                                                        style={{ willChange: 'transform, opacity', ...containerStyle }}
                                                         className={`select-none ${containerClass}`}
                                                         aria-hidden="true"
                                                     >

@@ -30,6 +30,7 @@ interface Props {
 }
 
 const defaultValues = {
+    pariwisata_id: '' as any,
     title: '',
     label: '',
     subtitle: '',
@@ -44,6 +45,10 @@ const defaultValues = {
 export default function CeritaFormBase({ item, mode, overlays = [] }: Props) {
     const editing = mode === 'edit' && !!item;
     const page = usePage().props as any;
+    const pariwisataOptions = (page.pariwisataOptions || []) as Array<{ id: number; title: string; slug: string }>;
+    const defaultPariwisataId = page.defaultPariwisataId as number | null | undefined;
+    const lockPariwisata = !!page.lockPariwisata;
+    const pariwisataCtx = page.pariwisata as { id: number; title: string; slug: string } | undefined;
     const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
 
     const { data, setData, processing, errors, clearErrors } = useForm<{ [K in keyof typeof defaultValues]: (typeof defaultValues)[K] } & { background_image?: File | null }>({ 
@@ -100,9 +105,16 @@ export default function CeritaFormBase({ item, mode, overlays = [] }: Props) {
 
     useEffect(() => {
         if (!editing) {
-            setData({ ...defaultValues });
+            const base = { ...defaultValues } as any;
+            // If locked via nested route, bind pariwisata id from context
+            if (lockPariwisata && pariwisataCtx?.id) {
+                base.pariwisata_id = pariwisataCtx.id;
+            } else if (defaultPariwisataId && !base.pariwisata_id) {
+                base.pariwisata_id = defaultPariwisataId;
+            }
+            setData(base);
         }
-    }, [mode]);
+    }, [mode, defaultPariwisataId, lockPariwisata, pariwisataCtx?.id]);
 
     useEffect(() => {
         if (!slugManuallyEdited) {
@@ -119,8 +131,13 @@ export default function CeritaFormBase({ item, mode, overlays = [] }: Props) {
     const onSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         clearErrors();
-        const routeName = editing ? 'cerita.update' : 'cerita.store';
-        const url = editing ? route(routeName, item.id) : route(routeName);
+        const url = editing
+            ? (lockPariwisata && pariwisataCtx?.id
+                ? route('cerita.update-for-pariwisata', [pariwisataCtx.id, item.id])
+                : route('cerita.update', item.id))
+            : (lockPariwisata && pariwisataCtx?.id)
+                ? route('cerita.store-for-pariwisata', pariwisataCtx.id)
+                : route('cerita.store');
         // Use FormData if file present
         let submitData: any = data;
         let options: any = {};
@@ -154,10 +171,10 @@ export default function CeritaFormBase({ item, mode, overlays = [] }: Props) {
             setOverlayUploadError('Item belum tersimpan. Simpan dulu sebelum tambah overlay.');
             return;
         }
-        if (file.size > 2 * 1024 * 1024) {
-            setOverlayUploadError('Ukuran maksimal 2MB');
-            return;
-        }
+        // if (file.size > 2 * 1024 * 1024) {
+        //     setOverlayUploadError('Ukuran maksimal 2MB');
+        //     return;
+        // }
         const blobUrl = URL.createObjectURL(file);
         setOverlayList(prev => [...prev, {
             id: -Date.now(),
@@ -350,12 +367,45 @@ export default function CeritaFormBase({ item, mode, overlays = [] }: Props) {
                     {isMobile && (
                         <Button type='button' variant='secondary' onClick={() => setPreviewOpen(true)}>Preview</Button>
                     )}
-                    <Button variant='outline' type='button' onClick={() => router.visit(route('cerita.index'))}>Kembali</Button>
+                    <Button variant='outline' type='button' onClick={() => {
+                        if (lockPariwisata && pariwisataCtx?.id) {
+                            router.visit(route('cerita.by-pariwisata', pariwisataCtx.id));
+                        } else {
+                            router.visit(route('cerita.index'));
+                        }
+                    }}>Kembali</Button>
                     <Button type='submit' form='cerita-form' disabled={processing}>{processing ? 'Menyimpan...' : 'Simpan'}</Button>
                 </div>
             </div>
             <div className={cn('flex flex-1 overflow-hidden', isMobile ? 'flex-col' : '')}>
                 <form id='cerita-form' onSubmit={onSubmit} className={cn('shrink-0 overflow-y-auto border-r p-4 lg:p-6 space-y-4 bg-background', isMobile ? 'w-full border-r-0' : 'w-[430px]')}>
+                    {/* Destinasi: hidden when locked or in edit (cannot change) */}
+                    {lockPariwisata || editing ? (
+                        <div className='space-y-1'>
+                            <Label className='text-sm font-medium'>Destinasi</Label>
+                            <div className='text-sm text-muted-foreground'>
+                                {pariwisataCtx?.title || pariwisataOptions.find(o => o.id === (data.pariwisata_id as any))?.title || '—'}
+                            </div>
+                            {/* Keep hidden input for completeness if needed by backend */}
+                            <input type='hidden' name='pariwisata_id' value={data.pariwisata_id ?? ''} />
+                        </div>
+                    ) : (
+                        <div className='space-y-2'>
+                            <Label className='text-sm font-medium required'>Destinasi</Label>
+                            <select
+                                value={data.pariwisata_id ?? ''}
+                                onChange={(e) => setData('pariwisata_id', e.target.value ? parseInt(e.target.value) : ('' as any))}
+                                className='border rounded h-9 px-3 text-sm bg-background'
+                                required
+                            >
+                                <option value=''>— Pilih Destinasi —</option>
+                                {pariwisataOptions.map(opt => (
+                                    <option key={opt.id} value={opt.id}>{opt.title}</option>
+                                ))}
+                            </select>
+                            {errors.pariwisata_id && <p className='text-xs text-red-500'>{String(errors.pariwisata_id)}</p>}
+                        </div>
+                    )}
                     <div className='space-y-2'>
                         <Label className='text-sm font-medium required'>Title</Label>
                         <Input value={data.title} onChange={e => setData('title', e.target.value)} required />
@@ -508,12 +558,13 @@ export default function CeritaFormBase({ item, mode, overlays = [] }: Props) {
                                                             </div>
                                                             <div className='grid grid-cols-2 gap-2'>
                                                                 <div className='space-y-1'>
-                                                                    <Label className='text-[10px]'>Width (px)</Label>
+                                                                    <Label className='text-[10px]'>Width (px or %)</Label>
                                                                     <Input
                                                                         type='number'
-                                                                        min='1'
+                                                                        min='0'
+                                                                        step='0.01'
                                                                         value={ov.width ?? ''}
-                                                                        onChange={(e) => updateOverlayLocal(ov.id, { width: e.target.value ? parseInt(e.target.value) : null })}
+                                                                        onChange={(e) => updateOverlayLocal(ov.id, { width: e.target.value ? parseFloat(e.target.value) : null })}
                                                                         className='h-7 text-[10px] px-2'
                                                                         placeholder='Auto'
                                                                     />
@@ -531,6 +582,7 @@ export default function CeritaFormBase({ item, mode, overlays = [] }: Props) {
                                                                 </div>
                                                             </div>
                                                         </div>
+                                                        <p className='text-[10px] text-muted-foreground'>Tip: untuk responsif, isi width 1..100 (sebagai %) atau 0..1 (mis. 0.4 = 40%). Kosongkan height agar tinggi mengikuti rasio asli.</p>
                                                         <div className='flex gap-1 pt-1'>
                                                             <Button size='sm' variant='outline' onClick={() => saveOverlay(ov.id)} className='h-6 px-2 text-[10px]'>Save</Button>
                                                             <Button size='sm' variant='ghost' onClick={() => setActiveOverlayId(null)} className='h-6 px-2 text-[10px]'>Close</Button>
@@ -604,18 +656,29 @@ const OverlayAligned: React.FC<{ overlay: OverlayType }> = ({ overlay }) => {
     const translateY = overlay.position_vertical === 'center' ? '-50%' : '0';
     style.transform = `translate(${translateX}, ${translateY})`;
     
-    // Size
-    if (overlay.width) style.width = `${overlay.width}px`;
-    if (overlay.height) style.height = `${overlay.height}px`;
+    // Size: support responsive % width (consistent with PariwisataFormBase)
+    if (overlay.width != null) {
+        const w = overlay.width as number;
+        if (w > 0 && w <= 1) {
+            style.width = `${w * 100}%`;
+        } else if (w > 0 && w <= 100) {
+            style.width = `${w}%`;
+        } else if (w > 0) {
+            style.width = `${w}px`;
+        }
+    }
+    if (overlay.height != null && overlay.height > 0) style.height = `${overlay.height}px`;
     
     // Map custom 'crop' semantic to 'cover' for CSS object-fit
     const fit = overlay.object_fit === 'crop' ? 'cover' : (overlay.object_fit ?? 'contain');
     
-    // Image styling
+    // Image styling: match frontend logic so height-only cases work
+    const widthSet = overlay.width != null && overlay.width > 0;
+    const heightSet = overlay.height != null && overlay.height > 0;
     const imgStyle: React.CSSProperties = {
         objectFit: fit,
-        width: '100%',
-        height: '100%'
+        width: widthSet ? '100%' : (heightSet ? 'auto' : '100%'),
+        height: heightSet ? '100%' : 'auto'
     };
     
     // Fallback max size if no explicit size set

@@ -21,6 +21,7 @@ export type CeritaType = {
     cta_label: string;
     align: string;
     created_at: string;
+    pariwisata?: { id: number; title: string; slug: string } | null;
 };
 
 const onDelete = (id: number) => {
@@ -192,9 +193,20 @@ export const columns: ColumnDef<CeritaType>[] = [
                             <DropdownMenuLabel>Actions</DropdownMenuLabel>
                             <DropdownMenuItem
                                 onSelect={() => {
-                                    router.visit(route('cerita.edit', payment.id));
+                                    if (payment.pariwisata?.id) {
+                                        router.visit(route('cerita.edit-for-pariwisata', [payment.pariwisata.id, payment.id]));
+                                    } else {
+                                        router.visit(route('cerita.edit', payment.id));
+                                    }
                                 }}
                             >Edit Data</DropdownMenuItem>
+                            <DropdownMenuItem
+                                disabled={!payment.pariwisata?.slug}
+                                onSelect={() => {
+                                    const slug = payment.pariwisata?.slug;
+                                    if (slug) router.visit(`/${slug}/cerita`);
+                                }}
+                            >Lihat Halaman</DropdownMenuItem>
                             <DropdownMenuItem
                                 onSelect={() => {
                                     if (store.open) {

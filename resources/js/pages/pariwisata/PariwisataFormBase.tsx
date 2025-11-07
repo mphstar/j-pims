@@ -160,10 +160,10 @@ export default function PariwisataFormBase({ item, mode, overlays = [], destinat
             setOverlayUploadError('Item belum tersimpan. Simpan dulu sebelum tambah overlay.');
             return;
         }
-        if (file.size > 2 * 1024 * 1024) {
-            setOverlayUploadError('Ukuran maksimal 2MB');
-            return;
-        }
+        // if (file.size > 2 * 1024 * 1024) {
+        //     setOverlayUploadError('Ukuran maksimal 2MB');
+        //     return;
+        // }
         const blobUrl = URL.createObjectURL(file);
         setOverlayList(prev => [...prev, {
             id: -Date.now(),
@@ -540,12 +540,13 @@ export default function PariwisataFormBase({ item, mode, overlays = [], destinat
                                                             </div>
                                                             <div className='grid grid-cols-2 gap-2'>
                                                                 <div className='space-y-1'>
-                                                                    <Label className='text-[10px]'>Width (px)</Label>
+                                                                    <Label className='text-[10px]'>Width (px or %)</Label>
                                                                     <Input
                                                                         type='number'
-                                                                        min='1'
+                                                                        min='0'
+                                                                        step='0.01'
                                                                         value={ov.width ?? ''}
-                                                                        onChange={(e) => updateOverlayLocal(ov.id, { width: e.target.value ? parseInt(e.target.value) : null })}
+                                                                        onChange={(e) => updateOverlayLocal(ov.id, { width: e.target.value ? parseFloat(e.target.value) : null })}
                                                                         className='h-7 text-[10px] px-2'
                                                                         placeholder='Auto'
                                                                     />
@@ -563,6 +564,7 @@ export default function PariwisataFormBase({ item, mode, overlays = [], destinat
                                                                 </div>
                                                             </div>
                                                         </div>
+                                                        <p className='text-[10px] text-muted-foreground'>Tip: untuk responsif, isi width 1..100 (sebagai %) atau 0..1 (mis. 0.4 = 40%). Kosongkan height agar tinggi mengikuti rasio asli.</p>
                                                         <div className='flex gap-1 pt-1'>
                                                             <Button size='sm' variant='outline' onClick={() => saveOverlay(ov.id)} className='h-6 px-2 text-[10px]'>Save</Button>
                                                             <Button size='sm' variant='ghost' onClick={() => setActiveOverlayId(null)} className='h-6 px-2 text-[10px]'>Close</Button>
@@ -636,18 +638,29 @@ const OverlayAligned: React.FC<{ overlay: OverlayType }> = ({ overlay }) => {
     const translateY = overlay.position_vertical === 'center' ? '-50%' : '0';
     style.transform = `translate(${translateX}, ${translateY})`;
     
-    // Size
-    if (overlay.width) style.width = `${overlay.width}px`;
-    if (overlay.height) style.height = `${overlay.height}px`;
+    // Size: support responsive % width (consistent with frontend)
+    if (overlay.width != null) {
+        const w = overlay.width as number;
+        if (w > 0 && w <= 1) {
+            style.width = `${w * 100}%`;
+        } else if (w > 0 && w <= 100) {
+            style.width = `${w}%`;
+        } else if (w > 0) {
+            style.width = `${w}px`;
+        }
+    }
+    if (overlay.height != null && overlay.height > 0) style.height = `${overlay.height}px`;
     
     // Map custom 'crop' semantic to 'cover' for CSS object-fit
     const fit = overlay.object_fit === 'crop' ? 'cover' : (overlay.object_fit ?? 'contain');
     
-    // Image styling
+    // Image styling: match frontend logic so height-only cases work
+    const widthSet = overlay.width != null && overlay.width > 0;
+    const heightSet = overlay.height != null && overlay.height > 0;
     const imgStyle: React.CSSProperties = {
         objectFit: fit,
-        width: '100%',
-        height: '100%'
+        width: widthSet ? '100%' : (heightSet ? 'auto' : '100%'),
+        height: heightSet ? '100%' : 'auto'
     };
     
     // Fallback max size if no explicit size set

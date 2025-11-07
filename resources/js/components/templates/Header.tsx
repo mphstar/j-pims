@@ -10,12 +10,13 @@ interface HeaderProps {
   brand?: string;
   backHref?: string;
   actions?: React.ReactNode;
+  containerRef?: React.Ref<HTMLDivElement>;
 }
 
-export function Header({active,onJump,sections,brand,backHref,actions}:HeaderProps){
+export function Header({active,onJump,sections,brand,backHref,actions,containerRef}:HeaderProps){
   const label = brand || 'Education';
   return (
-  <div className="fixed top-0 z-[60] px-3 md:px-8 py-3 border-b border-white/10 w-full">
+  <div ref={containerRef} className="fixed top-0 z-[60] px-3 md:px-8 py-3 border-b border-white/10 w-full">
       {/* Mobile layout */}
       <div className="md:hidden relative flex items-center h-10">
         {/* Left: back button or logo when no back */}

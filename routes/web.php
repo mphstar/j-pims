@@ -23,6 +23,8 @@ use Illuminate\Support\Facades\Route;
 // Frontend Routes (Public)
 Route::get('/', [FrontendController::class, 'index'])->name('home');
 Route::get('/search', [SearchController::class, 'index'])->name('search');
+// Cerita per destinasi (frontend)
+Route::get('/{slug}/cerita', [FrontendController::class, 'cerita'])->name('frontend.cerita');
 Route::get('/destinasi/{slug}/produk', [FrontendController::class, 'products'])->name('frontend.destination.products');
 Route::get('/destinasi/{slug}/produk/{product}', [FrontendController::class, 'product'])->name('frontend.product.view');
 // SEO friendly product page by destination slug
@@ -72,11 +74,22 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('{pariwisata}/overlays', [PariwisataController::class, 'storeOverlay'])->name('pariwisata.overlays.store');
         Route::post('overlays/{overlay}', [PariwisataController::class, 'updateOverlay'])->name('pariwisata.overlays.update');
         Route::post('overlays/{overlay}/delete', [PariwisataController::class, 'deleteOverlay'])->name('pariwisata.overlays.delete');
+
+        // Cerita management shortcut per destinasi (Admin)
+        Route::get('{pariwisata}/cerita', [\App\Http\Controllers\Admin\CeritaController::class, 'byPariwisata'])->name('cerita.by-pariwisata');
+        Route::get('{pariwisata}/cerita/create', [\App\Http\Controllers\Admin\CeritaController::class, 'createForPariwisata'])->name('cerita.create-for-pariwisata');
+        Route::post('{pariwisata}/cerita', [\App\Http\Controllers\Admin\CeritaController::class, 'storeForPariwisata'])->name('cerita.store-for-pariwisata');
+    // Nested edit/update
+    Route::get('{pariwisata}/cerita/edit/{cerita}', [\App\Http\Controllers\Admin\CeritaController::class, 'editForPariwisata'])->name('cerita.edit-for-pariwisata');
+    Route::post('{pariwisata}/cerita/update/{cerita}', [\App\Http\Controllers\Admin\CeritaController::class, 'updateForPariwisata'])->name('cerita.update-for-pariwisata');
+    // Optional convenience: /pariwisata/{id}/cerita/edit?cerita=123 → redirect to nested edit or list
+    Route::get('{pariwisata}/cerita/edit', [\App\Http\Controllers\Admin\CeritaController::class, 'redirectEdit'])->name('cerita.redirect-edit');
     });
 
     // Cerita (Admin)
     Route::prefix('cerita')->group(function () {
-        Route::get('/', [\App\Http\Controllers\Admin\CeritaController::class, 'index'])->name('cerita.index');
+        // Route::get('/', [\App\Http\Controllers\Admin\CeritaController::class, 'index'])->name('cerita.index');
+        // Generic create/store kept for backward compatibility; prefer nested routes under pariwisata
         Route::get('create', [\App\Http\Controllers\Admin\CeritaController::class, 'create'])->name('cerita.create');
         Route::post('store', [\App\Http\Controllers\Admin\CeritaController::class, 'store'])->name('cerita.store');
         Route::get('edit/{cerita}', [\App\Http\Controllers\Admin\CeritaController::class, 'edit'])->name('cerita.edit');
@@ -110,6 +123,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Access from pariwisata action: /pariwisata/{pariwisata}/product
     Route::get('pariwisata/{pariwisata}/product', [PariwisataProductController::class, 'indexByPariwisata'])->name('product.by-pariwisata');
+    // Nested create page bound to a specific destinasi: /pariwisata/{pariwisata}/product/create
+    Route::get('pariwisata/{pariwisata}/product/create', [PariwisataProductController::class, 'createForPariwisata'])->name('product.create-for-pariwisata');
+    // Nested edit page: /pariwisata/{pariwisata}/product/{product}/edit
+    Route::get('pariwisata/{pariwisata}/product/{product}/edit', [PariwisataProductController::class, 'editForPariwisata'])->name('product.edit-for-pariwisata');
 
     Route::prefix('settings')->group(function () {
         Route::post('update', [SettingController::class, 'update'])->name('settings.update');

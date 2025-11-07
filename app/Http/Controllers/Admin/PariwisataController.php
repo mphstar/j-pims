@@ -174,12 +174,12 @@ class PariwisataController extends Controller
     public function storeOverlay(Request $request, Pariwisata $pariwisata)
     {
         $data = $request->validate([
-            'overlay' => 'required|image|max:2048',
+            'overlay' => 'required|image',
             'position_horizontal' => 'nullable|in:left,center,right',
             'position_vertical' => 'nullable|in:top,center,bottom',
             'object_fit' => 'nullable|in:contain,cover,fill,none,scale-down,crop',
-            'width' => 'nullable|integer|min:1',
-            'height' => 'nullable|integer|min:1'
+            'width' => 'nullable|numeric|gt:0',
+            'height' => 'nullable|numeric|gt:0'
         ]);
         $file = $request->file('overlay');
         $dir = public_path('uploads/pariwisata/overlays');
@@ -208,8 +208,8 @@ class PariwisataController extends Controller
             'position_horizontal' => 'nullable|in:left,center,right',
             'position_vertical' => 'nullable|in:top,center,bottom',
             'object_fit' => 'nullable|in:contain,cover,fill,none,scale-down,crop',
-            'width' => 'nullable|integer|min:1',
-            'height' => 'nullable|integer|min:1'
+            'width' => 'nullable|numeric|gt:0',
+            'height' => 'nullable|numeric|gt:0'
         ]);
         $overlay->update($data);
         return redirect()->route('pariwisata.edit', $overlay->pariwisata_id)->with('success', 'Overlay updated');

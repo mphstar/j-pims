@@ -16,7 +16,10 @@ class PariwisataOverlays extends Model
         'width','height'
     ];
 
-    protected $casts = [];
+    protected $casts = [
+        'width' => 'float',
+        'height' => 'float',
+    ];
 
     public function pariwisata()
     {

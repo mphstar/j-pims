@@ -4,11 +4,6 @@ import { Head, usePage } from '@inertiajs/react';
 import { type BreadcrumbItem } from '@/types';
 import ProductFormBase from './ProductFormBase';
 
-const breadcrumbs: BreadcrumbItem[] = [
-  { title: 'Products', href: '/products' },
-  { title: 'Tambah', href: '#' },
-];
-
 export default function CreateProduct() {
   const { 
     destinations, 
@@ -18,8 +13,21 @@ export default function CreateProduct() {
     visitTimes,
     selectedActivityLevelIds,
     selectedPriceRangeIds,
-    selectedVisitTimeIds
+    selectedVisitTimeIds,
+    pariwisata
   } = usePage().props as any;
+
+  const breadcrumbs: BreadcrumbItem[] = pariwisata
+    ? [
+        { title: 'Pariwisata', href: route('pariwisata.index') },
+        { title: pariwisata.title, href: route('pariwisata.edit', pariwisata.id) },
+        { title: 'Products', href: route('product.by-pariwisata', pariwisata.id) },
+        { title: 'Tambah', href: '#' }
+      ]
+    : [
+        { title: 'Products', href: route('product.index') },
+        { title: 'Tambah', href: '#' }
+      ];
 
   return (
     <AppLayout breadcrumbs={breadcrumbs}>

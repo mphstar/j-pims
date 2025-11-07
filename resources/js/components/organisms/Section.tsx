@@ -2,6 +2,7 @@ import React, { forwardRef, useRef, useEffect, useState } from 'react';
 import { motion, useInView } from 'framer-motion';
 import { FancyButton } from '../atoms/FancyButton';
 import Flip from '../FlipText';
+import { computeOverlayLayout } from '@/utils/overlayLayout';
 
 
 export type SectionData = {
@@ -29,7 +30,7 @@ export type SectionData = {
     align?: 'left' | 'right';
 };
 
-export const Section = forwardRef<HTMLDivElement, { data: SectionData; index: number; onCtaClick?: (data: SectionData) => void }>(({ data, index, onCtaClick }, ref) => {
+export const Section = forwardRef<HTMLDivElement, { data: SectionData; index: number; onCtaClick?: (data: SectionData) => void; offsetTop?: number; viewportOffsetTop?: number }>(({ data, index, onCtaClick, offsetTop, viewportOffsetTop }, ref) => {
     const { bg, title, subtitle, content, ctaHref, overlays, align = 'left' } = data;
 
     const sectionRef = useRef<HTMLDivElement | null>(null);
@@ -47,7 +48,17 @@ export const Section = forwardRef<HTMLDivElement, { data: SectionData; index: nu
     useEffect(() => { if (inView && !prev.current) { setCycle(c => c + 1); } prev.current = inView; }, [inView]);
     const handleMove = (e: React.MouseEvent) => { if (!window.matchMedia('(pointer:fine)').matches) return; const rect = (e.currentTarget as HTMLElement).getBoundingClientRect(); pos.current.tx = e.clientX - rect.left; pos.current.ty = e.clientY - rect.top; };
     return (
-        <section id={data.id} ref={(el: HTMLDivElement | null) => { sectionRef.current = el; if (typeof ref === 'function') ref(el as any); else if (ref && 'current' in ref) (ref as any).current = el; }} onMouseMove={handleMove} className={`h-screen w-screen snap-start relative isolate flex items-center bg-black ${align === 'right' ? 'justify-end' : 'justify-start'}`} style={{ scrollSnapStop: 'always' }}>
+        <section
+            id={data.id}
+            ref={(el: HTMLDivElement | null) => { sectionRef.current = el; if (typeof ref === 'function') ref(el as any); else if (ref && 'current' in ref) (ref as any).current = el; }}
+            onMouseMove={handleMove}
+            className={`w-screen snap-start relative isolate flex items-center bg-black ${align === 'right' ? 'justify-end' : 'justify-start'}`}
+            style={{
+                scrollSnapStop: 'always',
+                scrollMarginTop: offsetTop ? `${offsetTop}px` : undefined,
+                height: viewportOffsetTop != null ? `calc(100vh - ${viewportOffsetTop}px)` : '100vh',
+            }}
+        >
             {/* Black background layer to prevent unwanted images showing through */}
             <div className="absolute inset-0 -z-20 bg-black" />
             {bg && (
@@ -86,56 +97,14 @@ export const Section = forwardRef<HTMLDivElement, { data: SectionData; index: nu
                         ease: "easeOut"
                     }}
                 >
-                    {overlays.map((overlay, i) => {
-                        // Placement logic using position_horizontal and position_vertical
-                        let stylePos: React.CSSProperties = {};
-                        let translateX = '0';
-                        let translateY = '0';
-                        
-                        // Horizontal
-                        if (overlay.position_horizontal === 'left') {
-                            stylePos.left = '0';
-                        } else if (overlay.position_horizontal === 'right') {
-                            stylePos.right = '0';
-                        } else if (overlay.position_horizontal === 'center') {
-                            stylePos.left = '50%';
-                            translateX = '-50%';
-                        } else {
-                            // default center if nothing chosen
-                            stylePos.left = '50%';
-                            translateX = '-50%';
-                        }
-                        
-                        // Vertical
-                        if (overlay.position_vertical === 'top') {
-                            stylePos.top = '0';
-                        } else if (overlay.position_vertical === 'bottom') {
-                            stylePos.bottom = '0';
-                        } else if (overlay.position_vertical === 'center') {
-                            stylePos.top = '50%';
-                            translateY = '-50%';
-                        } else {
-                            // default top
-                            stylePos.top = '0';
-                        }
-                        
-                        // Size
-                        if (overlay.width) stylePos.width = `${overlay.width}px`;
-                        if (overlay.height) stylePos.height = `${overlay.height}px`;
-                        
-                        // Fallback max size if no explicit size set
-                        const containerClass = overlay.width || overlay.height ? '' : 'max-w-[240px] max-h-[240px]';
-                        
-                        // Map custom 'crop' semantic to 'cover' for CSS object-fit
-                        const fit = overlay.object_fit === 'crop' ? 'cover' : (overlay.object_fit ?? 'contain');
-                        
-                        // Image styling
-                        const imgStyle: React.CSSProperties = {
-                            objectFit: fit,
-                            width: '100%',
-                            height: '100%'
-                        };
-                        
+                                        {overlays.map((overlay, i) => {
+                                                const { containerStyle, imgStyle, containerClass } = computeOverlayLayout({
+                                                    position_horizontal: overlay.position_horizontal,
+                                                    position_vertical: overlay.position_vertical,
+                                                    object_fit: overlay.object_fit,
+                                                    width: overlay.width,
+                                                    height: overlay.height,
+                                                });
                         // Animation variants for each overlay
                         const overlayVariants = {
                           hidden: { 
@@ -162,12 +131,7 @@ export const Section = forwardRef<HTMLDivElement, { data: SectionData; index: nu
                               ease: [0.25, 0.46, 0.45, 0.94]
                             }}
                             variants={overlayVariants}
-                            style={{
-                              position: 'absolute',
-                              transform: `translate(${translateX}, ${translateY})`,
-                              willChange: 'transform, opacity',
-                              ...stylePos,
-                            }}
+                                                        style={{ willChange: 'transform, opacity', ...containerStyle }}
                             className={`select-none ${containerClass}`}
                             aria-hidden="true"
                           >

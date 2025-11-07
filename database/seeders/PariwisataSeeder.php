@@ -5,12 +5,29 @@ namespace Database\Seeders;
 use App\Models\Pariwisata;
 use App\Models\PariwisataOverlays;
 use App\Models\PariwisataProduct;
+use App\Models\PreferenceDestinationType;
+use App\Models\PreferenceActivityLevel;
+use App\Models\PreferencePriceRange;
+use App\Models\PreferenceVisitTime;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Seeder;
 
 class PariwisataSeeder extends Seeder
 {
     public function run(): void
     {
+        // Reset destination-related tables for clean seeding (dev/demo convenience)
+        Schema::disableForeignKeyConstraints();
+        DB::table('pariwisata_overlays')->truncate();
+        DB::table('pariwisata_products')->truncate();
+        DB::table('pariwisata_preference_destination_types')->truncate();
+        DB::table('product_activity_levels')->truncate();
+        DB::table('product_price_ranges')->truncate();
+        DB::table('product_visit_times')->truncate();
+        DB::table('pariwisata')->truncate();
+        Schema::enableForeignKeyConstraints();
+
         // Data pariwisata Jember
         $pariwisataData = [
             [
@@ -128,6 +145,12 @@ class PariwisataSeeder extends Seeder
             ]
         ];
 
+        // Fetch preference dictionaries to attach
+        $allDestTypes = PreferenceDestinationType::all()->keyBy(fn($r) => $r->title);
+        $activityLevels = PreferenceActivityLevel::pluck('id')->all();
+        $priceRanges = PreferencePriceRange::pluck('id')->all();
+        $visitTimes = PreferenceVisitTime::pluck('id')->all();
+
         foreach ($pariwisataData as $data) {
             $overlays = $data['overlays'];
             unset($data['overlays']);
@@ -144,6 +167,36 @@ class PariwisataSeeder extends Seeder
                     'position_vertical' => $overlay['position_vertical'],
                     'object_fit' => $overlay['object_fit']
                 ]);
+            }
+
+            // Attach 1-2 destination types based on slug keywords
+            $attachTypes = [];
+            if (str_contains($pariwisata->slug, 'pantai')) {
+                if ($allDestTypes->has('Pantai')) $attachTypes[] = $allDestTypes['Pantai']->id;
+                if ($allDestTypes->has('Alam & Sejarah')) { /* old key guard */ }
+                if ($allDestTypes->has('Alam & Hutan')) $attachTypes[] = $allDestTypes['Alam & Hutan']->id;
+            } elseif (str_contains($pariwisata->slug, 'zoom')) {
+                if ($allDestTypes->has('Taman Hiburan')) $attachTypes[] = $allDestTypes['Taman Hiburan']->id;
+                if ($allDestTypes->has('Kota')) $attachTypes[] = $allDestTypes['Kota']->id;
+            } elseif (str_contains($pariwisata->slug, 'teh')) {
+                if ($allDestTypes->has('Alam & Hutan')) $attachTypes[] = $allDestTypes['Alam & Hutan']->id;
+                if ($allDestTypes->has('Gunung')) $attachTypes[] = $allDestTypes['Gunung']->id;
+            } elseif (str_contains($pariwisata->slug, 'rembangan')) {
+                if ($allDestTypes->has('Gunung')) $attachTypes[] = $allDestTypes['Gunung']->id;
+                if ($allDestTypes->has('Alam & Hutan')) $attachTypes[] = $allDestTypes['Alam & Hutan']->id;
+            } elseif (str_contains($pariwisata->slug, 'pemandian')) {
+                if ($allDestTypes->has('Alam & Hutan')) $attachTypes[] = $allDestTypes['Alam & Hutan']->id;
+            }
+            $attachTypes = array_values(array_unique($attachTypes));
+            if (!empty($attachTypes)) {
+                DB::table('pariwisata_preference_destination_types')->insert(
+                    array_map(fn($typeId) => [
+                        'pariwisata_id' => $pariwisata->id,
+                        'preference_destination_type_id' => $typeId,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ], $attachTypes)
+                );
             }
 
             // 2) Create two sample products per destination
@@ -194,6 +247,32 @@ class PariwisataSeeder extends Seeder
                     'position_vertical' => 'bottom',
                     'object_fit' => 'cover',
                 ]);
+
+                // Attach product preferences (1 each) for demo
+                if ($activityLevels) {
+                    DB::table('product_activity_levels')->insert([
+                        'product_id' => $product->id,
+                        'preference_activity_level_id' => $activityLevels[$i % count($activityLevels)],
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                }
+                if ($priceRanges) {
+                    DB::table('product_price_ranges')->insert([
+                        'product_id' => $product->id,
+                        'preference_price_range_id' => $priceRanges[$i % count($priceRanges)],
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                }
+                if ($visitTimes) {
+                    DB::table('product_visit_times')->insert([
+                        'product_id' => $product->id,
+                        'preference_visit_time_id' => $visitTimes[$i % count($visitTimes)],
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                }
             }
         }
     }

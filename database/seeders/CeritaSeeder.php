@@ -6,6 +6,9 @@ use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use App\Models\Cerita;
 use App\Models\CeritaOverlays;
+use App\Models\Pariwisata;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 class CeritaSeeder extends Seeder
@@ -15,88 +18,55 @@ class CeritaSeeder extends Seeder
      */
     public function run(): void
     {
-        $ceritaData = [
-            [
-                'title' => 'Petualangan di Gunung Bromo',
-                'label' => 'ADVENTURE',
-                'subtitle' => 'Menyaksikan Sunrise Spektakuler',
-                'content' => 'Rasakan pengalaman tak terlupakan menyaksikan matahari terbit dari puncak Gunung Bromo. Pemandangan kawah yang megah dan lautan pasir yang luas akan membuat perjalanan Anda semakin berkesan.',
-                'background_url' => 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1920&h=1080&fit=crop',
-                'cta_href' => '#',
-                'cta_label' => 'Lihat Detail',
-                'align' => 'left',
-            ],
-            [
-                'title' => 'Keindahan Pantai Nusa Penida',
-                'label' => 'BEACH',
-                'subtitle' => 'Surga Tersembunyi di Bali',
-                'content' => 'Jelajahi keindahan pantai-pantai eksotis di Nusa Penida. Dari Kelingking Beach yang ikonik hingga Crystal Bay yang jernih, setiap sudut pulau ini menawarkan pemandangan yang memukau.',
-                'background_url' => 'https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=1920&h=1080&fit=crop',
-                'cta_href' => '#',
-                'cta_label' => 'Explore',
-                'align' => 'right',
-            ],
-            [
-                'title' => 'Wisata Budaya Yogyakarta',
-                'label' => 'CULTURE',
-                'subtitle' => 'Jejak Sejarah Kerajaan Mataram',
-                'content' => 'Telusuri kekayaan budaya dan sejarah Yogyakarta. Kunjungi Candi Borobudur, Prambanan, dan Keraton untuk merasakan kemegahan peradaban Jawa kuno.',
-                'background_url' => 'https://images.unsplash.com/photo-1596422846543-75c6fc197f07?w=1920&h=1080&fit=crop',
-                'cta_href' => '#',
-                'cta_label' => 'Pelajari Lebih Lanjut',
-                'align' => 'left',
-            ],
-            [
-                'title' => 'Diving di Raja Ampat',
-                'label' => 'MARINE',
-                'subtitle' => 'Surga Bawah Laut Indonesia',
-                'content' => 'Selami keindahan bawah laut Raja Ampat yang terkenal sebagai salah satu spot diving terbaik di dunia. Nikmati keanekaragaman hayati laut yang luar biasa dengan terumbu karang yang masih sangat terjaga.',
-                'background_url' => 'https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=1920&h=1080&fit=crop',
-                'cta_href' => '#',
-                'cta_label' => 'Book Now',
-                'align' => 'right',
-            ],
-            [
-                'title' => 'Hiking di Gunung Rinjani',
-                'label' => 'TREKKING',
-                'subtitle' => 'Tantangan untuk Pendaki Sejati',
-                'content' => 'Taklukkan puncak Gunung Rinjani dan saksikan keindahan Danau Segara Anak dari ketinggian. Perjalanan penuh tantangan ini akan memberikan pengalaman mendaki yang tak terlupakan.',
-                'background_url' => 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1920&h=1080&fit=crop',
-                'cta_href' => '#',
-                'cta_label' => 'Start Journey',
-                'align' => 'left',
-            ],
-        ];
+        // Truncate cerita tables for clean seeding (dev/demo)
+        Schema::disableForeignKeyConstraints();
+        DB::table('cerita_overlays')->truncate();
+        DB::table('cerita')->truncate();
+        Schema::enableForeignKeyConstraints();
 
-        foreach ($ceritaData as $data) {
-            $slug = Str::slug($data['title']);
-            
-            // Ensure unique slug
-            $originalSlug = $slug;
-            $i = 1;
-            while (Cerita::where('slug', $slug)->exists()) {
-                $slug = $originalSlug . '-' . $i++;
+        $destinations = Pariwisata::orderBy('id')->get();
+        $count = 0;
+
+        foreach ($destinations as $dIdx => $dest) {
+            // Minimal 3 cerita per destinasi
+            for ($n = 1; $n <= 3; $n++) {
+                $data = [
+                    'pariwisata_id' => $dest->id,
+                    'title' => 'Cerita ' . $dest->title . ' #' . $n,
+                    'label' => strtoupper(Str::slug($dest->label ?: 'cerita', ' ')),
+                    'subtitle' => $dest->subtitle,
+                    'content' => $dest->content,
+                    'background_url' => 'https://picsum.photos/seed/'.md5($dest->slug.'-cerita-'.$n).'/1920/1080',
+                    'cta_href' => '#',
+                    'cta_label' => 'Lihat Produk',
+                    'align' => ($dIdx + $n) % 2 === 0 ? 'left' : 'right',
+                ];
+
+                $data['slug'] = $dest->slug . '-cerita-' . $n;
+
+                // Ensure unique slug just in case
+                $originalSlug = $data['slug'];
+                $i = 1;
+                while (Cerita::where('slug', $data['slug'])->exists()) {
+                    $data['slug'] = $originalSlug . '-' . $i++;
+                }
+
+                $cerita = Cerita::create($data);
+                $count++;
+
+                // Seed one sample overlay per cerita for demo
+                CeritaOverlays::create([
+                    'cerita_id' => $cerita->id,
+                    'overlay_url' => 'https://picsum.photos/seed/'.md5($cerita->slug.'-ov').'/360/240',
+                    'position_horizontal' => ($dIdx + $n) % 2 === 0 ? 'right' : 'left',
+                    'position_vertical' => 'center',
+                    'object_fit' => 'cover',
+                    'width' => 360,
+                    'height' => 240,
+                ]);
             }
-            
-            $data['slug'] = $slug;
-            
-            $cerita = Cerita::create($data);
-
-            // Optional: Add some sample overlays
-            // You can uncomment this if you want to add default overlays
-            /*
-            CeritaOverlays::create([
-                'cerita_id' => $cerita->id,
-                'overlay_url' => 'https://via.placeholder.com/400x400.png?text=Overlay',
-                'position_horizontal' => 'center',
-                'position_vertical' => 'center',
-                'object_fit' => 'contain',
-                'width' => 400,
-                'height' => 400,
-            ]);
-            */
         }
 
-        $this->command->info('Cerita seeder completed! Created ' . count($ceritaData) . ' cerita entries.');
+        $this->command->info('Cerita seeder completed! Created ' . $count . ' cerita entries linked to destinasi (>=3 per destinasi).');
     }
 }

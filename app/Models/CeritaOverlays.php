@@ -21,6 +21,11 @@ class CeritaOverlays extends Model
         'height',
     ];
 
+    protected $casts = [
+        'width' => 'float',
+        'height' => 'float',
+    ];
+
     public function cerita()
     {
         return $this->belongsTo(Cerita::class, 'cerita_id');

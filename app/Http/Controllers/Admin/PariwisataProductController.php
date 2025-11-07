@@ -53,6 +53,28 @@ class PariwisataProductController extends Controller
         ]);
     }
 
+    public function createForPariwisata(Pariwisata $pariwisata)
+    {
+        // Provide only the locked pariwisata context (destinations list could be omitted or include just this one)
+        $destinations = collect([$pariwisata])->map(fn($p) => $p->only(['id','title','slug']));
+
+        $allActivityLevels = \App\Models\PreferenceActivityLevel::orderBy('title')->get(['id','icon','title','subtitle']);
+        $allPriceRanges = \App\Models\PreferencePriceRange::orderBy('title')->get(['id','icon','title','subtitle']);
+        $allVisitTimes = \App\Models\PreferenceVisitTime::orderBy('title')->get(['id','icon','title','subtitle']);
+
+        return Inertia::render('product/create', [
+            'destinations' => $destinations,
+            'selectedPariwisataId' => $pariwisata->id,
+            'pariwisata' => $pariwisata->only(['id','title','slug']),
+            'activityLevels' => $allActivityLevels,
+            'priceRanges' => $allPriceRanges,
+            'visitTimes' => $allVisitTimes,
+            'selectedActivityLevelIds' => [],
+            'selectedPriceRangeIds' => [],
+            'selectedVisitTimeIds' => [],
+        ]);
+    }
+
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -113,26 +135,60 @@ class PariwisataProductController extends Controller
             $item->visitTimes()->sync($visitTimeIds);
         }
         
-        return redirect()->route('product.by-pariwisata', $validated['pariwisata_id'])->with('success', 'Product berhasil dibuat');
+    // After creation redirect to edit page (requirement: tambah → langsung ke edit)
+    return redirect()->route('product.edit', $item->id)->with('success', 'Product berhasil dibuat, lanjutkan pengaturan overlay');
     }
 
     public function edit(PariwisataProduct $product)
     {
         $product->load(['overlays', 'pariwisata:id,title', 'activityLevels', 'priceRanges', 'visitTimes']);
         $destinations = Pariwisata::select('id','title','slug')->orderBy('title')->get();
-        
+
         $allActivityLevels = \App\Models\PreferenceActivityLevel::orderBy('title')->get(['id','icon','title','subtitle']);
         $allPriceRanges = \App\Models\PreferencePriceRange::orderBy('title')->get(['id','icon','title','subtitle']);
         $allVisitTimes = \App\Models\PreferenceVisitTime::orderBy('title')->get(['id','icon','title','subtitle']);
-        
+
         $selectedActivityLevelIds = $product->activityLevels->pluck('id')->toArray();
         $selectedPriceRangeIds = $product->priceRanges->pluck('id')->toArray();
         $selectedVisitTimeIds = $product->visitTimes->pluck('id')->toArray();
-        
+
         return Inertia::render('product/edit', [
             'item' => $product,
             'destinations' => $destinations,
             'overlays' => $product->overlays,
+            'pariwisata' => $product->pariwisata ? $product->pariwisata->only(['id','title','slug']) : null,
+            'activityLevels' => $allActivityLevels,
+            'priceRanges' => $allPriceRanges,
+            'visitTimes' => $allVisitTimes,
+            'selectedActivityLevelIds' => $selectedActivityLevelIds,
+            'selectedPriceRangeIds' => $selectedPriceRangeIds,
+            'selectedVisitTimeIds' => $selectedVisitTimeIds,
+        ]);
+    }
+
+    public function editForPariwisata(Pariwisata $pariwisata, PariwisataProduct $product)
+    {
+        // Ensure the product belongs to the provided pariwisata
+        if ($product->pariwisata_id !== $pariwisata->id) {
+            return redirect()->route('product.by-pariwisata', $pariwisata->id)->with('error', 'Product tidak termasuk destinasi ini');
+        }
+        $product->load(['overlays', 'pariwisata:id,title', 'activityLevels', 'priceRanges', 'visitTimes']);
+        // Limit destinations list to the locked pariwisata (or we could send an empty array)
+        $destinations = collect([$pariwisata])->map(fn($p) => $p->only(['id','title','slug']));
+
+        $allActivityLevels = \App\Models\PreferenceActivityLevel::orderBy('title')->get(['id','icon','title','subtitle']);
+        $allPriceRanges = \App\Models\PreferencePriceRange::orderBy('title')->get(['id','icon','title','subtitle']);
+        $allVisitTimes = \App\Models\PreferenceVisitTime::orderBy('title')->get(['id','icon','title','subtitle']);
+
+        $selectedActivityLevelIds = $product->activityLevels->pluck('id')->toArray();
+        $selectedPriceRangeIds = $product->priceRanges->pluck('id')->toArray();
+        $selectedVisitTimeIds = $product->visitTimes->pluck('id')->toArray();
+
+        return Inertia::render('product/edit', [
+            'item' => $product,
+            'destinations' => $destinations,
+            'overlays' => $product->overlays,
+            'pariwisata' => $pariwisata->only(['id','title','slug']),
             'activityLevels' => $allActivityLevels,
             'priceRanges' => $allPriceRanges,
             'visitTimes' => $allVisitTimes,
@@ -187,7 +243,8 @@ class PariwisataProductController extends Controller
         $product->priceRanges()->sync($priceRangeIds);
         $product->visitTimes()->sync($visitTimeIds);
         
-        return redirect()->route('product.by-pariwisata', $product->pariwisata_id)->with('success', 'Product updated');
+    // After update redirect back to list of that pariwisata
+    return redirect()->route('product.by-pariwisata', $product->pariwisata_id)->with('success', 'Product updated');
     }
 
     public function destroy(PariwisataProduct $product)
@@ -251,12 +308,12 @@ class PariwisataProductController extends Controller
     public function storeOverlay(Request $request, PariwisataProduct $product)
     {
         $data = $request->validate([
-            'overlay' => 'required|image|max:2048',
+            'overlay' => 'required|image',
             'position_horizontal' => 'nullable|in:left,center,right',
             'position_vertical' => 'nullable|in:top,center,bottom',
             'object_fit' => 'nullable|in:contain,cover,fill,none,scale-down,crop',
-            'width' => 'nullable|integer|min:1',
-            'height' => 'nullable|integer|min:1'
+            'width' => 'nullable|numeric|gt:0',
+            'height' => 'nullable|numeric|gt:0'
         ]);
         $file = $request->file('overlay');
         $dir = public_path('uploads/pariwisata/overlays');
@@ -284,8 +341,8 @@ class PariwisataProductController extends Controller
             'position_horizontal' => 'nullable|in:left,center,right',
             'position_vertical' => 'nullable|in:top,center,bottom',
             'object_fit' => 'nullable|in:contain,cover,fill,none,scale-down,crop',
-            'width' => 'nullable|integer|min:1',
-            'height' => 'nullable|integer|min:1'
+            'width' => 'nullable|numeric|gt:0',
+            'height' => 'nullable|numeric|gt:0'
         ]);
         $overlay->update($data);
         $product = $overlay->product;

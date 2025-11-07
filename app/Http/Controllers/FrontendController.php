@@ -25,6 +25,7 @@ class FrontendController extends Controller
             'products.priceRanges',
             'products.visitTimes',
         ])->get();
+
         
         $setting = Setting::first();
         
@@ -38,6 +39,7 @@ class FrontendController extends Controller
             'best_seasons' => array_column($metadataOptions['visit_times'], 'key'), // Map visit_times to best_seasons for compatibility
             'tags' => [], // Deprecated
         ];
+        
         
         return Inertia::render('frontend/PariwisataView', [
             'pariwisata' => $pariwisata->map(function($p){
@@ -148,6 +150,46 @@ class FrontendController extends Controller
         
         return Inertia::render('frontend/PariwisataDetail', [
             'pariwisata' => $pariwisata,
+        ]);
+    }
+
+    /**
+     * Cerita page per destinasi (frontend)
+     * Renders the story view for a destination and provides a CTA to products page.
+     */
+    public function cerita($slug)
+    {
+        // The slug here comes from Pariwisata (destination), not from cerita table
+        $dest = Pariwisata::with(['overlays'])->where('slug', $slug)->firstOrFail();
+        $setting = Setting::first();
+
+        // Fetch all stories (cerita) for this destination
+        $ceritaList = \App\Models\Cerita::with(['overlays'])
+            ->where('pariwisata_id', $dest->id)
+            ->orderBy('created_at', 'asc')
+            ->get();
+
+        // Map to a lean array the frontend expects
+        $stories = $ceritaList->map(function($c){
+            $arr = $c->only(['id','title','slug','label','subtitle','content','background_url','cta_href','cta_label','align']);
+            $arr['overlays'] = $c->overlays;
+            return $arr;
+        })->values();
+
+        // Fallback: if no cerita yet, show one section using destination data
+        if ($stories->isEmpty()) {
+            $arr = $dest->only(['id','title','slug','label','subtitle','content','background_url','cta_href','cta_label','align']);
+            $arr['overlays'] = $dest->overlays;
+            $stories = collect([$arr]);
+        }
+
+    // Product page href uses the destination slug with the route /{slug}/product
+    $productHref = route('frontend.product.by-slug', ['slug' => $dest->slug]);
+
+        return Inertia::render('frontend/CeritaView', [
+            'stories' => $stories,
+            'productHref' => $productHref,
+            'setting' => $setting ?: ['style' => 'column'],
         ]);
     }
 
