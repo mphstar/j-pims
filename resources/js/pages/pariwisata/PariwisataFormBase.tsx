@@ -134,7 +134,16 @@ export default function PariwisataFormBase({ item, mode, overlays = [], destinat
             const fd = new FormData();
             Object.entries(data).forEach(([k, v]) => {
                 if (k === 'background_image') return; // add below
-                fd.append(k, v as any ?? '');
+                if (Array.isArray(v)) {
+                    // Append arrays with bracket syntax so Laravel validates as array
+                    v.forEach((val) => fd.append(`${k}[]`, String(val)));
+                } else if (v instanceof File) {
+                    fd.append(k, v);
+                } else if (v === null || v === undefined) {
+                    fd.append(k, '');
+                } else {
+                    fd.append(k, String(v as any));
+                }
             });
             fd.append('background_image', data.background_image);
             submitData = fd;
