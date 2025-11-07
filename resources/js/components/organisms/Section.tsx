@@ -15,6 +15,9 @@ export type SectionData = {
     content?: React.ReactNode;
     ctaHref?: string;
     ctaLabel?: string;
+    // Optional overlay badge (e.g., personalization badge) shown on the section
+    badgeOverlay?: React.ReactNode;
+    badgePosition?: 'top-left' | 'top-right';
     overlays?: {
         url: string;
         position_horizontal: 'left' | 'center' | 'right' | null;
@@ -64,6 +67,12 @@ export const Section = forwardRef<HTMLDivElement, { data: SectionData; index: nu
                 />
             )}
             <div className="absolute inset-0 -z-10 bg-gradient-to-b from-black/60 via-black/30 to-black/60" />
+            {/* Optional top badge overlay */}
+            {data.badgeOverlay && (
+                <div className={`absolute top-4 z-10 ${data.badgePosition === 'top-right' ? 'right-4' : 'left-4'}`}>
+                    {data.badgeOverlay}
+                </div>
+            )}
             {overlays && overlays.length > 0 && (
                 <motion.div 
                     key={cycle} 

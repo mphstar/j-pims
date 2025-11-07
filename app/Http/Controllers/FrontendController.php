@@ -16,10 +16,14 @@ class FrontendController extends Controller
 {
     public function index()
     {
-        // Load pariwisata with new preference relationships
+        // Load pariwisata with new preference relationships including products
         $pariwisata = Pariwisata::with([
             'overlays',
             'destinationTypes', // preference_destination_types pivot
+            'products.overlays',
+            'products.activityLevels',
+            'products.priceRanges',
+            'products.visitTimes',
         ])->get();
         
         $setting = Setting::first();
@@ -37,7 +41,7 @@ class FrontendController extends Controller
         
         return Inertia::render('frontend/PariwisataView', [
             'pariwisata' => $pariwisata->map(function($p){
-                // Map new preference relationships to frontend format
+                // Map destination preference relationships to frontend format
                 $destinationTypes = $p->destinationTypes->map(function($dt) {
                     return [
                         'id' => $dt->id,
@@ -46,15 +50,28 @@ class FrontendController extends Controller
                         'key' => Str::slug($dt->title), // Generate key for compatibility
                     ];
                 })->toArray();
-                
-                // Create metadata object for frontend compatibility
+
                 $metadata = (object)[
                     'destination_types' => $destinationTypes,
                 ];
-                
-                $p->metadata = $metadata;
-                return $p;
-            }),
+
+                // Map products (if any) with new preference relationships
+                $products = $p->products->map(function($prod){
+                    $prodMeta = (object) [
+                        'activity_levels' => $prod->activityLevels->pluck('title')->map(fn($t) => Str::slug($t))->toArray(),
+                        'price_ranges' => $prod->priceRanges->pluck('title')->map(fn($t) => Str::slug($t))->toArray(),
+                        'best_seasons' => $prod->visitTimes->pluck('title')->map(fn($t) => Str::slug($t))->toArray(),
+                    ];
+                    return $prod->only(['id','title','slug','label','subtitle','content','background_url','cta_href','cta_label','align']) + ['overlays' => $prod->overlays, 'metadata' => $prodMeta];
+                })->values();
+
+                // Return destination with overlays, metadata, and products
+                return $p->only(['id','title','slug','label','subtitle','content','background_url','cta_href','cta_label','align']) + [
+                    'overlays' => $p->overlays,
+                    'metadata' => $metadata,
+                    'products' => $products,
+                ];
+            })->values(),
             'setting' => $setting ?: ['style' => 'column'],
             'metadataOptions' => $metadataKeys, // Send keys for OnboardingDialog compatibility
             'metadataDetails' => $metadataOptions, // Full objects for future use

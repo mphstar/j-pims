@@ -71,11 +71,20 @@ interface MetadataOptions {
   tags: string[];
 }
 
+// Full metadata objects from DB (optional), needed for destination types in onboarding
+interface MetadataDetails {
+  destination_types?: Array<{ id: number; icon?: string | null; title: string; subtitle?: string | null; key: string }>;
+  activity_levels?: Array<{ id: number; icon?: string | null; title: string; subtitle?: string | null; key: string }>;
+  price_ranges?: Array<{ id: number; icon?: string | null; title: string; subtitle?: string | null; key: string }>;
+  visit_times?: Array<{ id: number; icon?: string | null; title: string; subtitle?: string | null; key: string }>;
+}
+
 interface Props {
   pariwisata?: PariwisataType[];
   destinations?: DestinationType[];
   setting: SettingType;
   metadataOptions?: MetadataOptions;
+  metadataDetails?: MetadataDetails; // received from backend to drive onboarding destination types
 }
 
 // Function to convert database data to SectionData format
@@ -83,7 +92,7 @@ interface Props {
 
 
 
-export default function PariwisataView({ pariwisata, destinations, setting, metadataOptions }: Props) {
+export default function PariwisataView({ pariwisata, destinations, setting, metadataOptions, metadataDetails }: Props) {
   // Check if we have 'open' query parameter for direct link mode
   const [isDirectLink, setIsDirectLink] = useState(false);
   useEffect(() => {
@@ -113,9 +122,15 @@ export default function PariwisataView({ pariwisata, destinations, setting, meta
   // Normalize data: prefer destinations; fallback to pariwisata -> destinations with single product
   const normalizedDestinations: DestinationType[] = (destinations && destinations.length > 0)
     ? destinations
-    : (pariwisata || []).map(p => ({ ...p, products: [{ ...p }] }));
+    : (pariwisata || []).map(p => ({
+        ...p,
+        products: (p as any).products && (p as any).products.length > 0 ? (p as any).products : [{ ...p }]
+      }));
 
-  const allLabels = Array.from(new Set(normalizedDestinations.map(p => p.label).filter(Boolean))) as string[];
+  // Destination types for onboarding: prefer database-driven list from metadataDetails
+  const allLabels = (metadataDetails?.destination_types && metadataDetails.destination_types.length > 0)
+    ? metadataDetails.destination_types.map(dt => dt.title)
+    : (Array.from(new Set(normalizedDestinations.map(p => p.label).filter(Boolean))) as string[]);
   const [prefLabels, setPrefLabels] = useState<string[]>(() => {
     try { return JSON.parse(safeStorage?.getItem('jp_pref_labels') || '[]') as string[]; } catch { return []; }
   });
@@ -214,29 +229,55 @@ export default function PariwisataView({ pariwisata, destinations, setting, meta
     const active = products[activeIdx];
     const overlays = (active.overlays && active.overlays.length > 0 ? active.overlays : dest.overlays) || [];
     const alignVal = (active.align || dest.align) as 'left' | 'right';
-    
-    // Calculate personalization score based on metadata
-    const metadata = active.metadata || dest.metadata;
-    const personalizationScore = calculatePersonalizationScore(metadata, {
-      activityLevel: activityLevels,
-      priceRange: priceRanges,
-      bestSeason: bestSeasons,
+
+    // Calculate personalization across ALL products to surface at destination level
+    const productMatches = products.map(p => {
+      const m = p.metadata || dest.metadata;
+      const score = calculatePersonalizationScore(m, {
+        activityLevel: activityLevels,
+        priceRange: priceRanges,
+        bestSeason: bestSeasons,
+      });
+      return {
+        product: p,
+        metadata: m,
+        score,
+        badge: getPersonalizationBadge(score),
+        details: getPersonalizationDetails(m, {
+          activityLevel: activityLevels,
+          priceRange: priceRanges,
+          bestSeason: bestSeasons,
+        })
+      };
     });
-    const badge = getPersonalizationBadge(personalizationScore);
-    const detailBadges = getPersonalizationDetails(metadata, {
-      activityLevel: activityLevels,
-      priceRange: priceRanges,
-      bestSeason: bestSeasons,
-    });
+    const matchCount = productMatches.filter(pm => pm.score > 0).length;
+    const bestMatch = productMatches.reduce((best, cur) => cur.score > (best?.score || 0) ? cur : best, undefined as undefined | typeof productMatches[number]);
+
+    // Destination type matching (wisata-level) using prefLabels vs destination types from metadata (fallback to label)
+    const destTypeTitles: string[] = Array.isArray((dest as any)?.metadata?.destination_types)
+      ? ((dest as any).metadata.destination_types.map((dt: any) => typeof dt === 'string' ? dt : (dt?.title || '')).filter(Boolean))
+      : (dest.label ? [dest.label] : []);
+    const destTypeMatch = prefLabels.length > 0 && destTypeTitles.some(t => prefLabels.includes(t));
+
+  // Destination-level score uses best product score (primary), with a small boost for destination type match
+  const productScore = bestMatch?.score || 0;
+  let personalizationScore = productScore;
+    if (destTypeMatch) personalizationScore += 6; // boost if jenis destinasi cocok
+    const badge = bestMatch?.badge || null;
+    const detailBadgesBase = bestMatch?.details || [];
+    const detailBadges = destTypeMatch
+      ? [{ label: 'Jenis Destinasi Cocok', color: 'bg-indigo-500', icon: '🏷️' }, ...detailBadgesBase]
+      : detailBadgesBase;
     
+
     return {
       id: dest.slug || `section-${index}`,
       slug: dest.slug,
       label: dest.label ?? undefined,
-      title: active.title || dest.title,
+    title: dest.title,
   navLabel: dest.label || (dest.title ? dest.title.substring(0, 8) : 'Destinasi'),
-      subtitle: active.subtitle || dest.subtitle,
-      bg: active.background_url || dest.background_url,
+    subtitle: dest.subtitle,
+    bg: dest.background_url,
       overlays: overlays.map(overlay => ({
         url: overlay.overlay_url,
         position_horizontal: overlay.position_horizontal,
@@ -245,20 +286,21 @@ export default function PariwisataView({ pariwisata, destinations, setting, meta
         width: overlay.width,
         height: overlay.height
       })),
-      align: active.align || dest.align,
+  align: dest.align,
+      badgePosition: (alignVal === 'right' ? 'top-right' : 'top-left'),
       content: (
         <div className={"max-w-xl space-y-4 " + (alignVal === 'right' ? 'ml-auto text-right' : '')}>
-          {/* Badge "Rekomendasi Untuk Anda" - Tampil paling atas untuk section pertama */}
-          {index === 0 && personalizationScore > 0 && (
+          {/* Badge Rekomendasi: tampil jika product match kuat meskipun jenis destinasi tidak match */}
+          {productScore >= 18 && (
             <div className={"flex gap-2 flex-wrap " + (alignVal === 'right' ? 'justify-end' : '')}>
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium text-white bg-gradient-to-r from-blue-500 to-purple-500">
                 <span>✨</span>
-                Rekomendasi Untuk Anda
+                {index === 0 ? 'Rekomendasi Untuk Anda' : 'Direkomendasikan'}
               </span>
             </div>
           )}
           
-          {/* Detail badges dan badge cocok/sangat cocok */}
+          {/* Detail badges dari produk terbaik dan badge cocok/sangat cocok */}
           {(badge || detailBadges.length > 0) && (
             <div className={"flex gap-2 flex-wrap " + (alignVal === 'right' ? 'justify-end' : '')}>
               {badge && (
@@ -275,43 +317,38 @@ export default function PariwisataView({ pariwisata, destinations, setting, meta
               ))}
             </div>
           )}
-          <p className="text-white/90">{active.content || dest.content}</p>
-          {products.length > 1 && (
-            <div className="pt-4">
-              <div className={"text-xs text-white/70 mb-2 " + (alignVal === 'right' ? 'text-right' : '')}>Pilih varian produk:</div>
-              <div className={"flex gap-2 overflow-x-auto no-scrollbar py-1 pr-1 " + (alignVal === 'right' ? 'justify-end' : '')}>
-                {products.map((p, pi) => (
-                  <button
-                    key={p.id}
-                    onClick={() => setProductForSlug(dest.slug, pi)}
-                    className={`px-3 h-9 rounded-full border text-xs whitespace-nowrap ${pi===activeIdx ? 'border-white text-white bg-white/10' : 'border-white/20 text-white/80 hover:text-white hover:bg-white/10'}`}
-                    aria-current={pi===activeIdx ? 'true' : undefined}
-                  >
-                    {p.title}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
+          <p className="text-white/90">{dest.content}</p>
         </div>
       ),
-  ctaHref: dest.slug ? `/${dest.slug}/product` : (active.cta_href || dest.cta_href || '#'),
-      ctaLabel: active.cta_label || dest.cta_label || 'Lihat',
-      personalizationScore, // Store score for sorting
+  ctaHref: dest.slug ? `/${dest.slug}/product` : (dest.cta_href || '#'),
+      ctaLabel: 'Lihat Produk',
+      personalizationScore, // combined score for sorting (product primary + small boost)
+      productScore,
+      destTypeMatch,
     } as SectionData & { personalizationScore: number };
   });
   
   // Personalized ordering: sort by personalization score + label preferences + click history
   const SECTIONS = [...baseSections].sort((a, b) => {
-    // Personalization score (metadata match) - highest priority
+    // 1) Product score first (key driver)
+    const prodA = (a as any).productScore || 0;
+    const prodB = (b as any).productScore || 0;
+    if (prodA !== prodB) return prodB - prodA;
+
+    // 2) Small boost if destination type matches
+    const dtA = (a as any).destTypeMatch ? 1 : 0;
+    const dtB = (b as any).destTypeMatch ? 1 : 0;
+    if (dtA !== dtB) return dtB - dtA;
+
+    // 3) Label preferences as minor tiebreakers
+    const wa = (a.label ? (labelCounts[a.label] || 0) : 0) + (a.label && prefLabels.includes(a.label) ? 5 : 0);
+    const wb = (b.label ? (labelCounts[b.label] || 0) : 0) + (b.label && prefLabels.includes(b.label) ? 5 : 0);
+    if (wa !== wb) return wb - wa;
+
+    // 4) Fall back to combined score if still equal (stable sort)
     const scoreA = (a as any).personalizationScore || 0;
     const scoreB = (b as any).personalizationScore || 0;
-    if (scoreA !== scoreB) return scoreB - scoreA;
-    
-    // Label preferences - second priority
-    const wa = (a.label ? (labelCounts[a.label] || 0) : 0) + (a.label && prefLabels.includes(a.label) ? 100 : 0);
-    const wb = (b.label ? (labelCounts[b.label] || 0) : 0) + (b.label && prefLabels.includes(b.label) ? 100 : 0);
-    return wb - wa;
+    return scoreB - scoreA;
   });
   const isRowLayout = false;
   

@@ -89,9 +89,10 @@ export function OnboardingDialog({
   };
 
   const getActivityIcon = (level: string) => {
-    if (level === 'santai') return '�';
+    // Use stable emojis; previous placeholder caused replacement character (�)
+    if (level === 'santai') return '😌';
     if (level === 'sedang') return '🚶';
-    if (level === 'aktif') return '⛰️';
+    if (level === 'aktif') return '🏃';
     return '🎯';
   };
 
@@ -110,9 +111,10 @@ export function OnboardingDialog({
   };
 
   const getPriceIcon = (range: string) => {
-    if (range === 'hemat') return '�';
-    if (range === 'sedang') return '�';
-    if (range === 'premium') return '�';
+    // Replace broken placeholders with clear money-related emojis
+    if (range === 'hemat') return '💰';
+    if (range === 'sedang') return '💵';
+    if (range === 'premium') return '💎';
     return '💳';
   };
 

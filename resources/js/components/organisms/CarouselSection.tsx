@@ -90,6 +90,12 @@ export const CarouselSection = forwardRef<HTMLDivElement, { data: SectionData; i
             )}
             
             <div className="absolute inset-0 -z-10 bg-gradient-to-b from-black/60 via-black/30 to-black/60" />
+            {/* Optional top badge overlay */}
+            {data.badgeOverlay && (
+                <div className={`absolute top-4 z-10 ${data.badgePosition === 'top-right' ? 'right-4' : 'left-4'}`}>
+                    {data.badgeOverlay}
+                </div>
+            )}
             
                         {overlays && overlays.length > 0 && (
                 <motion.div 

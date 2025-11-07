@@ -179,11 +179,11 @@ export function normalizeActivityLevel(input?: string | null): 'easy' | 'moderat
   // Common synonyms (EN/ID)
   if (['easy','low','ringan','mudah','santai','leisure','relaxed'].includes(v)) return 'easy';
   if (['moderate','medium','sedang','menengah','standar','standard','balanced'].includes(v)) return 'moderate';
-  if (['hard','challenging','tinggi','berat','sulit','mellantang','menantang','intense','intens'].includes(v)) return 'challenging';
+  if (['hard','challenging','tinggi','berat','sulit','mellantang','menantang','intense','intens','aktif','aktifitas','aktifitas tinggi','aktif-tinggi'].includes(v)) return 'challenging';
   // Heuristics
   if (v.includes('santai') || v.includes('ringan') || v.includes('mudah')) return 'easy';
   if (v.includes('sedang') || v.includes('menengah')) return 'moderate';
-  if (v.includes('berat') || v.includes('tinggi') || v.includes('tantang') || v.includes('ekstrim') || v.includes('extreme')) return 'challenging';
+  if (v.includes('berat') || v.includes('tinggi') || v.includes('tantang') || v.includes('ekstrim') || v.includes('extreme') || v.includes('aktif')) return 'challenging';
   return null;
 }
 
@@ -198,9 +198,14 @@ export function normalizePriceRange(input?: string | null): 'budget' | 'moderate
   return null;
 }
 
-export function normalizeBestSeason(input?: string | null): 'jan-apr' | 'mei-okt' | 'all-year' | null {
+export function normalizeBestSeason(input?: string | null): 'jan-apr' | 'mei-okt' | 'all-year' | 'morning' | 'afternoon' | 'evening' | 'night' | null {
   const v = normalizeString(input);
   if (!v) return null;
+  // Time of day (visit time) synonyms
+  if (['pagi','morning','subuh','dawn','sunrise'].some(k=>v.includes(k))) return 'morning';
+  if (['siang','noon','afternoon','midday'].some(k=>v.includes(k))) return 'afternoon';
+  if (['sore','senja','evening','sunset','dusk'].some(k=>v.includes(k))) return 'evening';
+  if (['malam','night','late'].some(k=>v.includes(k))) return 'night';
   // All year synonyms
   if (v.includes('sepanjang') || v.includes('all') || v.includes('all-year') || v.includes('allyear') || v.includes('全年')) {
     return 'all-year';
