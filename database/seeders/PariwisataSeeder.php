@@ -248,30 +248,92 @@ class PariwisataSeeder extends Seeder
                     'object_fit' => 'cover',
                 ]);
 
-                // Attach product preferences (1 each) for demo
-                if ($activityLevels) {
-                    DB::table('product_activity_levels')->insert([
-                        'product_id' => $product->id,
-                        'preference_activity_level_id' => $activityLevels[$i % count($activityLevels)],
-                        'created_at' => now(),
-                        'updated_at' => now(),
-                    ]);
+                // Attach varied product preferences based on destination type and product index
+                // This creates diversity in matching for personalization testing
+                
+                // Activity Level: Vary based on destination and product
+                $activityChoice = [];
+                if (str_contains($pariwisata->slug, 'pantai')) {
+                    // Pantai: Santai & Sedang
+                    $activityChoice = $i === 0 ? [0] : [1]; // Paket A = Santai, B = Sedang
+                } elseif (str_contains($pariwisata->slug, 'zoom') || str_contains($pariwisata->slug, 'pemandian')) {
+                    // Keluarga/Relax: Santai
+                    $activityChoice = [0]; // Santai
+                } elseif (str_contains($pariwisata->slug, 'teh')) {
+                    // Kebun Teh: Santai & Sedang
+                    $activityChoice = $i === 0 ? [0] : [1];
+                } elseif (str_contains($pariwisata->slug, 'rembangan')) {
+                    // Hiking/Alam: Sedang & Aktif
+                    $activityChoice = $i === 0 ? [1] : [2]; // Paket A = Sedang, B = Aktif
+                } else {
+                    $activityChoice = [$i % 3]; // Default rotation
                 }
-                if ($priceRanges) {
-                    DB::table('product_price_ranges')->insert([
-                        'product_id' => $product->id,
-                        'preference_price_range_id' => $priceRanges[$i % count($priceRanges)],
-                        'created_at' => now(),
-                        'updated_at' => now(),
-                    ]);
+                
+                // Price Range: Vary each product
+                $priceChoice = [];
+                if (str_contains($pariwisata->slug, 'pantai') || str_contains($pariwisata->slug, 'pemandian')) {
+                    // Popular destinations: Hemat & Sedang
+                    $priceChoice = $i === 0 ? [0] : [1]; // A = Hemat, B = Sedang
+                } elseif (str_contains($pariwisata->slug, 'zoom')) {
+                    // Keluarga: Sedang
+                    $priceChoice = [1]; // Sedang
+                } elseif (str_contains($pariwisata->slug, 'teh') || str_contains($pariwisata->slug, 'rembangan')) {
+                    // Nature tours: Sedang & Premium
+                    $priceChoice = $i === 0 ? [1] : [2]; // A = Sedang, B = Premium
+                } else {
+                    $priceChoice = [$i % 3];
                 }
-                if ($visitTimes) {
-                    DB::table('product_visit_times')->insert([
-                        'product_id' => $product->id,
-                        'preference_visit_time_id' => $visitTimes[$i % count($visitTimes)],
-                        'created_at' => now(),
-                        'updated_at' => now(),
-                    ]);
+                
+                // Visit Time: Vary by activity type
+                $visitChoice = [];
+                if (str_contains($pariwisata->slug, 'pantai')) {
+                    // Pantai: Pagi & Sore (best light)
+                    $visitChoice = $i === 0 ? [0] : [2]; // A = Pagi, B = Sore
+                } elseif (str_contains($pariwisata->slug, 'zoom')) {
+                    // Zoo: Pagi & Siang
+                    $visitChoice = $i === 0 ? [0] : [1];
+                } elseif (str_contains($pariwisata->slug, 'teh') || str_contains($pariwisata->slug, 'rembangan')) {
+                    // Mountains: Pagi & Siang (before afternoon clouds)
+                    $visitChoice = $i === 0 ? [0] : [1];
+                } elseif (str_contains($pariwisata->slug, 'pemandian')) {
+                    // Hot spring: Sore & Malam (relaxing)
+                    $visitChoice = $i === 0 ? [2] : [3]; // Sore & Malam
+                } else {
+                    $visitChoice = [$i % 4];
+                }
+
+                // Insert preferences
+                foreach ($activityChoice as $idx) {
+                    if (isset($activityLevels[$idx])) {
+                        DB::table('product_activity_levels')->insert([
+                            'product_id' => $product->id,
+                            'preference_activity_level_id' => $activityLevels[$idx],
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ]);
+                    }
+                }
+                
+                foreach ($priceChoice as $idx) {
+                    if (isset($priceRanges[$idx])) {
+                        DB::table('product_price_ranges')->insert([
+                            'product_id' => $product->id,
+                            'preference_price_range_id' => $priceRanges[$idx],
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ]);
+                    }
+                }
+                
+                foreach ($visitChoice as $idx) {
+                    if (isset($visitTimes[$idx])) {
+                        DB::table('product_visit_times')->insert([
+                            'product_id' => $product->id,
+                            'preference_visit_time_id' => $visitTimes[$idx],
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ]);
+                    }
                 }
             }
         }
