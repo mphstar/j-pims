@@ -94,6 +94,8 @@ interface Props {
 
 export default function PariwisataView({ pariwisata, destinations, setting, metadataOptions, metadataDetails }: Props) {
 
+  
+
   // Check if we have 'open' query parameter for direct link mode
   const [isDirectLink, setIsDirectLink] = useState(false);
   useEffect(() => {
@@ -331,7 +333,6 @@ export default function PariwisataView({ pariwisata, destinations, setting, meta
     } as SectionData & { personalizationScore: number };
   });
 
-  console.log(baseSections);
   
   
 
@@ -748,6 +749,7 @@ export default function PariwisataView({ pariwisata, destinations, setting, meta
           initialPrefLabels={prefLabels}
           initialMotion={reducedMotion ? 'reduced' : 'high'}
           metadataOptions={metadataOptions}
+          metadataDetails={metadataDetails}
           onSave={({ prefLabels: pl, motion, activityLevels: als, priceRanges: prs, bestSeasons: bss }) => {
             setPrefLabels(pl);
             setReducedMotion(motion === 'reduced');

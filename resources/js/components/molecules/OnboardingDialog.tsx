@@ -13,6 +13,12 @@ interface OnboardingDialogProps {
     best_seasons: string[];
     tags: string[];
   };
+  metadataDetails?: {
+    destination_types?: Array<{ id: number; icon?: string | null; title: string; subtitle?: string | null; key: string }>;
+    activity_levels?: Array<{ id: number; icon?: string | null; title: string; subtitle?: string | null; key: string }>;
+    price_ranges?: Array<{ id: number; icon?: string | null; title: string; subtitle?: string | null; key: string }>;
+    visit_times?: Array<{ id: number; icon?: string | null; title: string; subtitle?: string | null; key: string }>;
+  };
   onSave: (data: {
     prefLabels: string[];
     motion: 'high' | 'reduced';
@@ -29,6 +35,7 @@ export function OnboardingDialog({
   initialPrefLabels,
   initialMotion,
   metadataOptions,
+  metadataDetails,
   onSave,
 }: OnboardingDialogProps) {
   const [step, setStep] = useState(0);
@@ -37,6 +44,15 @@ export function OnboardingDialog({
   const [bestSeasonsSel, setBestSeasonsSel] = useState<string[]>([]);
   const [prefLabels, setPrefLabels] = useState<string[]>(initialPrefLabels);
   const [motion, setMotion] = useState<'high' | 'reduced'>(initialMotion);
+
+  // Debug: Log metadataDetails only once
+  useState(() => {
+    // console.log('=== OnboardingDialog metadataDetails ===');
+    // console.log('Full metadataDetails:', JSON.stringify(metadataDetails, null, 2));
+    // console.log('Activity Levels:', metadataDetails?.activity_levels);
+    // console.log('Price Ranges:', metadataDetails?.price_ranges);
+    // console.log('Visit Times:', metadataDetails?.visit_times);
+  });
 
   const activityLevels = (metadataOptions?.activity_levels && metadataOptions.activity_levels.length > 0)
     ? metadataOptions.activity_levels
@@ -89,50 +105,54 @@ export function OnboardingDialog({
   };
 
   const getActivityIcon = (level: string) => {
-    // Use stable emojis; previous placeholder caused replacement character (�)
-    if (level === 'santai') return '😌';
+    const detail = metadataDetails?.activity_levels?.find(a => a.key === level);
+    if (detail?.icon) return detail.icon;
+    // Fallback icons
+    if (level === 'santai') return '🛌';
     if (level === 'sedang') return '🚶';
-    if (level === 'aktif') return '🏃';
+    if (level === 'aktif') return '⛰️';
     return '🎯';
   };
 
   const getActivityLabel = (level: string) => {
-    if (level === 'santai') return 'Santai';
-    if (level === 'sedang') return 'Sedang';
-    if (level === 'aktif') return 'Aktif';
+    const detail = metadataDetails?.activity_levels?.find(a => a.key === level);
+    if (detail?.title) return detail.title;
+    // Fallback - preserve exact case from database
     return level;
   };
 
   const getActivitySubtitle = (level: string) => {
-    if (level === 'santai') return 'Aktivitas ringan, santai';
-    if (level === 'sedang') return 'Jalan santai, aktivitas moderat';
-    if (level === 'aktif') return 'Trekking, aktivitas intens';
-    return '';
+    const detail = metadataDetails?.activity_levels?.find(a => a.key === level);
+    return detail?.subtitle || '';
   };
 
   const getPriceIcon = (range: string) => {
-    // Replace broken placeholders with clear money-related emojis
-    if (range === 'hemat') return '💰';
-    if (range === 'sedang') return '💵';
+    const detail = metadataDetails?.price_ranges?.find(p => p.key === range);
+    if (detail?.icon) return detail.icon;
+    // Fallback icons
+    if (range === 'hemat') return '💸';
+    if (range === 'sedang') return '💰';
     if (range === 'premium') return '💎';
     return '💳';
   };
 
   const getPriceLabel = (range: string) => {
-    if (range === 'hemat') return 'Hemat';
-    if (range === 'sedang') return 'Sedang';
-    if (range === 'premium') return 'Premium';
+    const detail = metadataDetails?.price_ranges?.find(p => p.key === range);
+    if (detail?.title) return detail.title;
+    // Fallback - preserve exact case from database
     return range;
   };
 
   const getPriceSubtitle = (range: string) => {
-    if (range === 'hemat') return 'Budget friendly';
-    if (range === 'sedang') return 'Mid-range';
-    if (range === 'premium') return 'High-end experience';
-    return '';
+    const detail = metadataDetails?.price_ranges?.find(p => p.key === range);
+    return detail?.subtitle || '';
   };
 
   const getSeasonIcon = (season: string) => {
+    const detail = metadataDetails?.visit_times?.find(v => v.key === season);
+    if (step === 3) console.log(`Season icon for "${season}":`, detail?.icon, 'Full detail:', detail);
+    if (detail?.icon) return detail.icon;
+    // Fallback icons
     if (season === 'pagi') return '🌅';
     if (season === 'siang') return '🌤️';
     if (season === 'sore') return '🌇';
@@ -141,19 +161,16 @@ export function OnboardingDialog({
   };
 
   const getSeasonLabel = (season: string) => {
-    if (season === 'pagi') return 'Pagi';
-    if (season === 'siang') return 'Siang';
-    if (season === 'sore') return 'Sore';
-    if (season === 'malam') return 'Malam';
+    const detail = metadataDetails?.visit_times?.find(v => v.key === season);
+    if (detail?.title) return detail.title;
+    // Fallback - preserve exact case from database
     return season;
   };
 
   const getSeasonSubtitle = (season: string) => {
-    if (season === 'pagi') return '06:00 - 10:00';
-    if (season === 'siang') return '10:00 - 14:00';
-    if (season === 'sore') return '14:00 - 18:00';
-    if (season === 'malam') return '18:00 - 22:00';
-    return '';
+    const detail = metadataDetails?.visit_times?.find(v => v.key === season);
+    if (step === 3) console.log(`Season subtitle for "${season}":`, detail?.subtitle);
+    return detail?.subtitle || '';
   };
 
   const getLabelIcon = (label: string) => {
