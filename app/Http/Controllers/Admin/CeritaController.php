@@ -343,19 +343,37 @@ class CeritaController extends Controller
 
     public function destroy(Cerita $cerita)
     {
+        $pariwisataId = $cerita->pariwisata_id;
         $this->deleteFileIfExists($cerita->background_url);
         foreach ($cerita->overlays as $ov) {
             $this->deleteFileIfExists($ov->overlay_url);
         }
         CeritaOverlays::where('cerita_id', $cerita->id)->delete();
         $cerita->delete();
-        return redirect()->route('cerita.index')->with('success', 'Cerita deleted');
+        
+        if ($pariwisataId) {
+            return redirect()->route('cerita.by-pariwisata', $pariwisataId)->with('success', 'Cerita deleted');
+        }
+        
+        // Fallback: redirect to pariwisata index if no pariwisata_id
+        return redirect()->route('pariwisata.index')->with('success', 'Cerita deleted');
     }
 
     public function deleteMultiple(Request $request)
     {
-        $ids = $request->input('ids', []);
+        // Extract IDs from the data array
+        $data = $request->input('data', []);
+        $ids = collect($data)->pluck('id')->filter()->toArray();
+        
+        if (empty($ids)) {
+            $ids = $request->input('ids', []);
+        }
+        
         $items = Cerita::whereIn('id', $ids)->get();
+        
+        // Try to get pariwisata_id from first item, or from request parameter
+        $pariwisataId = $items->first()?->pariwisata_id ?? $request->input('pariwisata_id');
+        
         foreach ($items as $item) {
             $this->deleteFileIfExists($item->background_url);
             foreach ($item->overlays as $ov) {
@@ -364,7 +382,13 @@ class CeritaController extends Controller
             CeritaOverlays::where('cerita_id', $item->id)->delete();
             $item->delete();
         }
-        return redirect()->route('cerita.index')->with('success', 'Selected cerita deleted');
+        
+        if ($pariwisataId) {
+            return redirect()->route('cerita.by-pariwisata', $pariwisataId)->with('success', 'Selected cerita deleted');
+        }
+        
+        // Fallback: redirect to pariwisata index if no pariwisata_id
+        return redirect()->route('pariwisata.index')->with('success', 'Selected cerita deleted');
     }
 
     private function deleteFileIfExists(?string $url): void
