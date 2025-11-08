@@ -76,6 +76,134 @@ Get all pariwisata with complete relations (overlays, products, cerita, destinat
 
 ---
 
+## 🔍 Search API
+
+### Search Destinations and Products
+Search across destinations (pariwisata) and products with filtering options.
+
+**Endpoint:** `GET /search`
+
+**Query Parameters:**
+- `q` (optional): Search query string
+- `destination_type_ids` (optional): Array or comma-separated destination type IDs
+- `activity_level_ids` (optional): Array or comma-separated activity level IDs
+- `price_range_ids` (optional): Array or comma-separated price range IDs
+- `visit_time_ids` (optional): Array or comma-separated visit time IDs
+
+**Example Request:**
+```
+GET /api/search?q=pantai&destination_type_ids=1,2&activity_level_ids=1
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "query": "pantai",
+    "filters": {
+      "destination_type_ids": ["1", "2"],
+      "activity_level_ids": ["1"],
+      "price_range_ids": [],
+      "visit_time_ids": []
+    },
+    "results": [
+      {
+        "id": 1,
+        "type": "destination",
+        "title": "Pantai Papuma",
+        "subtitle": "Keindahan Pantai di Jember",
+        "label": "Pantai Indah",
+        "slug": "pantai-papuma",
+        "content": "Deskripsi singkat...",
+        "background_url": "https://...",
+        "overlays": [...],
+        "destination_types": [
+          {
+            "id": 1,
+            "icon": "🏖️",
+            "title": "Pantai"
+          }
+        ]
+      },
+      {
+        "id": 1,
+        "type": "product",
+        "title": "Pantai Papuma — Paket A",
+        "subtitle": "Paket Wisata Hemat",
+        "label": "Paket A",
+        "slug": "pantai-papuma-paket-a",
+        "content": "Deskripsi singkat...",
+        "background_url": "https://...",
+        "parent_destination": {
+          "id": 1,
+          "title": "Pantai Papuma",
+          "slug": "pantai-papuma"
+        },
+        "overlays": [...],
+        "activity_levels": [...],
+        "price_ranges": [...],
+        "visit_times": [...],
+        "destination_types": [...]
+      }
+    ],
+    "total": 2
+  }
+}
+```
+
+### Get Search Recommendations
+Get random recommendations (mix of destinations and products) for users who haven't searched yet.
+
+**Endpoint:** `GET /search/recommendations`
+
+**Query Parameters:**
+- `limit` (optional): Number of recommendations to return (default: 12)
+
+**Example Request:**
+```
+GET /api/search/recommendations?limit=6
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "type": "destination",
+      "title": "Pantai Papuma",
+      "subtitle": "Keindahan Pantai di Jember",
+      "label": "Pantai Indah",
+      "slug": "pantai-papuma",
+      "content": "Deskripsi singkat...",
+      "background_url": "https://...",
+      "overlays": [...],
+      "destination_types": [...]
+    },
+    {
+      "id": 1,
+      "type": "product",
+      "title": "Pantai Papuma — Paket A",
+      "subtitle": "Paket Wisata Hemat",
+      "label": "Paket A",
+      "slug": "pantai-papuma-paket-a",
+      "content": "Deskripsi singkat...",
+      "background_url": "https://...",
+      "parent_destination": {...},
+      "overlays": [...],
+      "activity_levels": [...],
+      "price_ranges": [...],
+      "visit_times": [...],
+      "destination_types": [...]
+    }
+  ]
+}
+```
+
+---
+
 ## ⚙️ Preferences API
 
 ### Get Activity Levels
@@ -269,6 +397,19 @@ Use preference APIs to:
 
 ### Example Use Case
 ```javascript
+// Search for destinations and products
+const searchResponse = await fetch('/api/search?q=pantai&destination_type_ids=1')
+  .then(r => r.json());
+
+console.log(searchResponse.data.results); // Array of destinations and products
+console.log(searchResponse.data.total); // Total results count
+
+// Get recommendations when page loads
+const recommendationsResponse = await fetch('/api/search/recommendations?limit=8')
+  .then(r => r.json());
+
+console.log(recommendationsResponse.data); // Array of random destinations and products
+
 // Get all wisata with complete relations
 const response = await fetch('/api/wisata').then(r => r.json());
 

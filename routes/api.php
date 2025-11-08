@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\DestinationController;
 use App\Http\Controllers\Api\SettingController;
 use App\Http\Controllers\Api\WisataController;
 use App\Http\Controllers\Api\PreferenceController;
+use App\Http\Controllers\Api\SearchController;
 use App\Http\Controllers\MetadataOptionsController;
 
 Route::get('/user', function (Request $request) {
@@ -18,6 +19,10 @@ Route::get('/user', function (Request $request) {
 // Pariwisata/Destinations
 Route::get('/wisata', [WisataController::class, 'index']);
 // Route::get('/wisata/{slug}', [WisataController::class, 'show']);
+
+// ===== Search API =====
+Route::get('/search', [SearchController::class, 'search']);
+Route::get('/search/recommendations', [SearchController::class, 'recommendations']);
 
 // ===== Preference API =====
 Route::prefix('preferences')->group(function () {
