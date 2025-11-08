@@ -171,7 +171,7 @@ class SearchController extends Controller
     private function performSearch($query, $filters)
     {
         // Search Pariwisata (destinations)
-        $destinations = Pariwisata::with(['overlays', 'destinationTypes'])
+        $destinations = Pariwisata::with(['overlays', 'destinationTypes', 'products.overlays', 'cerita.overlays'])
             ->when($query, function ($q) use ($query) {
                 $q->where(function ($q) use ($query) {
                     $q->where('title', 'like', "%{$query}%")
@@ -185,27 +185,8 @@ class SearchController extends Controller
                     $q->whereIn('preference_destination_types.id', $filters['destination_type_ids']);
                 });
             })
-            ->get()
-            ->map(function ($dest) {
-                return [
-                    'id' => $dest->id,
-                    'type' => 'destination',
-                    'title' => $dest->title,
-                    'subtitle' => $dest->subtitle,
-                    'label' => $dest->label,
-                    'slug' => $dest->slug,
-                    'content' => Str::limit(strip_tags($dest->content), 200),
-                    'background_url' => $dest->background_url,
-                    'overlays' => $dest->overlays,
-                    'destination_types' => $dest->destinationTypes->map(function($dt) {
-                        return [
-                            'id' => $dt->id,
-                            'icon' => $dt->icon,
-                            'title' => $dt->title,
-                        ];
-                    }),
-                ];
-            });
+            ->get();
+            
 
         // Search Products
         $products = PariwisataProduct::with([
