@@ -16,6 +16,21 @@ class FrontendController extends Controller
 {
     public function index()
     {
+        return Inertia::render('frontend/PariwisataView', $this->buildLandingPayload());
+    }
+
+    public function autoPlay()
+    {
+        $payload = $this->buildLandingPayload();
+        $payload['autoPlay'] = true;
+        $payload['autoPlayIntervalMs'] = 7000;
+        $payload['personalizationEnabled'] = false;
+
+        return Inertia::render('frontend/PariwisataView', $payload);
+    }
+
+    private function buildLandingPayload(): array
+    {
         // Load pariwisata with new preference relationships including products
         $pariwisata = Pariwisata::with([
             'overlays',
@@ -26,12 +41,11 @@ class FrontendController extends Controller
             'products.visitTimes',
         ])->get();
 
-        
         $setting = Setting::first();
-        
+
         // Get metadata options from new preference tables
         $metadataOptions = $this->getMetadataOptions();
-        
+
         // Extract keys for OnboardingDialog (backward compatibility)
         $metadataKeys = [
             'activity_levels' => array_column($metadataOptions['activity_levels'], 'key'),
@@ -39,12 +53,11 @@ class FrontendController extends Controller
             'best_seasons' => array_column($metadataOptions['visit_times'], 'key'), // Map visit_times to best_seasons for compatibility
             'tags' => [], // Deprecated
         ];
-        
-        
-        return Inertia::render('frontend/PariwisataView', [
-            'pariwisata' => $pariwisata->map(function($p){
+
+        return [
+            'pariwisata' => $pariwisata->map(function ($p) {
                 // Map destination preference relationships to frontend format
-                $destinationTypes = $p->destinationTypes->map(function($dt) {
+                $destinationTypes = $p->destinationTypes->map(function ($dt) {
                     return [
                         'id' => $dt->id,
                         'icon' => $dt->icon,
@@ -58,17 +71,17 @@ class FrontendController extends Controller
                 ];
 
                 // Map products (if any) with new preference relationships
-                $products = $p->products->map(function($prod){
-                    $prodMeta = (object) [
+                $products = $p->products->map(function ($prod) {
+                    $prodMeta = (object)[
                         'activity_levels' => $prod->activityLevels->pluck('title')->map(fn($t) => Str::slug($t))->toArray(),
                         'price_ranges' => $prod->priceRanges->pluck('title')->map(fn($t) => Str::slug($t))->toArray(),
                         'best_seasons' => $prod->visitTimes->pluck('title')->map(fn($t) => Str::slug($t))->toArray(),
                     ];
-                    return $prod->only(['id','title','slug','label','subtitle','content','background_url','cta_href','cta_label','align']) + ['overlays' => $prod->overlays, 'metadata' => $prodMeta];
+                    return $prod->only(['id', 'title', 'slug', 'label', 'subtitle', 'content', 'background_url', 'cta_href', 'cta_label', 'align']) + ['overlays' => $prod->overlays, 'metadata' => $prodMeta];
                 })->values();
 
                 // Return destination with overlays, metadata, and products
-                return $p->only(['id','title','slug','label','subtitle','content','background_url','cta_href','cta_label','align']) + [
+                return $p->only(['id', 'title', 'slug', 'label', 'subtitle', 'content', 'background_url', 'cta_href', 'cta_label', 'align']) + [
                     'overlays' => $p->overlays,
                     'metadata' => $metadata,
                     'products' => $products,
@@ -77,7 +90,7 @@ class FrontendController extends Controller
             'setting' => $setting ?: ['style' => 'column'],
             'metadataOptions' => $metadataKeys, // Send keys for OnboardingDialog compatibility
             'metadataDetails' => $metadataOptions, // Full objects for future use
-        ]);
+        ];
     }
     
     /**

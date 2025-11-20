@@ -22,6 +22,7 @@ use Illuminate\Support\Facades\Route;
 
 // Frontend Routes (Public)
 Route::get('/', [FrontendController::class, 'index'])->name('home');
+Route::get('/auto-play', [FrontendController::class, 'autoPlay'])->name('home.auto-play');
 Route::get('/search', [SearchController::class, 'index'])->name('search');
 // Cerita per destinasi (frontend)
 Route::get('/{slug}/cerita', [FrontendController::class, 'cerita'])->name('frontend.cerita');

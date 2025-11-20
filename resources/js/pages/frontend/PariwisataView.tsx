@@ -85,6 +85,9 @@ interface Props {
   setting: SettingType;
   metadataOptions?: MetadataOptions;
   metadataDetails?: MetadataDetails; // received from backend to drive onboarding destination types
+  personalizationEnabled?: boolean;
+  autoPlay?: boolean;
+  autoPlayIntervalMs?: number;
 }
 
 // Function to convert database data to SectionData format
@@ -92,7 +95,16 @@ interface Props {
 
 
 
-export default function PariwisataView({ pariwisata, destinations, setting, metadataOptions, metadataDetails }: Props) {
+export default function PariwisataView({
+  pariwisata,
+  destinations,
+  setting,
+  metadataOptions,
+  metadataDetails,
+  personalizationEnabled = true,
+  autoPlay = false,
+  autoPlayIntervalMs = 8000,
+}: Props) {
 
   
 
@@ -109,6 +121,9 @@ export default function PariwisataView({ pariwisata, destinations, setting, meta
   const safeStorage = typeof window !== 'undefined' ? window.localStorage : undefined;
   // Layout: fixed to column for snap scroll experience
   const layout: 'row' | 'column' = 'column';
+  const personalizationActive = personalizationEnabled;
+  const autoPlayEnabled = autoPlay;
+  const autoPlayDelay = Math.max(2000, autoPlayIntervalMs);
 
   // Label preferences and recent views
   type RecentItem = { slug: string; title: string; bg?: string };
@@ -192,15 +207,15 @@ export default function PariwisataView({ pariwisata, destinations, setting, meta
   });
   useEffect(() => { try { safeStorage?.setItem('jp_motion', reducedMotion ? 'reduced' : 'high'); } catch { } }, [reducedMotion]);
 
-  // Only show onboarding if not a direct link
-  const [onboardingOpen, setOnboardingOpen] = useState<boolean>(() => !isDirectLink);
+  // Only show onboarding if personalization is enabled and not a direct link
+  const [onboardingOpen, setOnboardingOpen] = useState<boolean>(() => personalizationActive && !isDirectLink);
 
-  // Update onboarding state when isDirectLink changes
+  // Update onboarding state when personalization/direct-link state changes
   useEffect(() => {
-    if (isDirectLink) {
+    if (!personalizationActive || isDirectLink) {
       setOnboardingOpen(false);
     }
-  }, [isDirectLink]);
+  }, [personalizationActive, isDirectLink]);
 
   const recordClick = (sec: SectionData) => {
     // recent
@@ -718,6 +733,17 @@ export default function PariwisataView({ pariwisata, destinations, setting, meta
     return () => { el.removeEventListener('scroll', onScroll); if (idleTimer) clearTimeout(idleTimer); };
   }, [active, ready, isRowLayout]);
 
+  // ===== Autoplay loop for snap scroll (used on /auto-play) =====
+  useEffect(() => {
+    if (!autoPlayEnabled || !ready || isRowLayout || SECTIONS.length < 2) return;
+    const timer = window.setTimeout(() => {
+      const currentIndex = Math.max(0, Math.min(SECTIONS.length - 1, active));
+      const nextIndex = (currentIndex + 1) % SECTIONS.length;
+      scrollToIndex(nextIndex, { behavior: 'smooth' });
+    }, autoPlayDelay);
+    return () => window.clearTimeout(timer);
+  }, [autoPlayEnabled, autoPlayDelay, active, ready, isRowLayout, SECTIONS.length]);
+
   if (!ready) {
     return (
       <div className="h-screen w-screen flex items-center justify-center bg-black text-white relative overflow-hidden" aria-busy="true" aria-label="Memuat aset">
@@ -738,8 +764,8 @@ export default function PariwisataView({ pariwisata, destinations, setting, meta
 
   return (
     <>
-      {/* Onboarding dialog (first visit or when reopened) - Hide for direct links */}
-      {!isDirectLink && (
+      {/* Onboarding dialog (first visit or when reopened) - Hide for direct links or autoplay */}
+      {personalizationActive && !isDirectLink && (
         <OnboardingDialog
           open={onboardingOpen}
           onOpenChange={(v) => {
@@ -798,14 +824,16 @@ export default function PariwisataView({ pariwisata, destinations, setting, meta
                       Cari
                     </Link>
                     {/* Re-open onboarding */}
-                    <button
-                      onClick={() => {
-                        setOnboardingOpen(true);
-                      }}
-                      className="px-3 h-9 rounded-md border border-white/15 bg-white/5 hover:bg-white/15 text-white/80 hover:text-white text-xs font-medium transition flex items-center justify-center"
-                    >
-                      Personalisasi
-                    </button>
+                    {personalizationActive && (
+                      <button
+                        onClick={() => {
+                          setOnboardingOpen(true);
+                        }}
+                        className="px-3 h-9 rounded-md border border-white/15 bg-white/5 hover:bg-white/15 text-white/80 hover:text-white text-xs font-medium transition flex items-center justify-center"
+                      >
+                        Personalisasi
+                      </button>
+                    )}
                   </>
                 )}
                 {/* Personalized ordering only; filter UI removed intentionally */}
@@ -889,14 +917,16 @@ export default function PariwisataView({ pariwisata, destinations, setting, meta
                       </svg>
                       Cari
                     </Link>
-                    <button
-                      onClick={() => {
-                        setOnboardingOpen(true);
-                      }}
-                      className="px-3 h-9 rounded-md border border-white/15 bg-white/5 hover:bg-white/15 text-white/80 hover:text-white text-xs font-medium transition flex items-center justify-center"
-                    >
-                      Personalisasi
-                    </button>
+                    {personalizationActive && (
+                      <button
+                        onClick={() => {
+                          setOnboardingOpen(true);
+                        }}
+                        className="px-3 h-9 rounded-md border border-white/15 bg-white/5 hover:bg-white/15 text-white/80 hover:text-white text-xs font-medium transition flex items-center justify-center"
+                      >
+                        Personalisasi
+                      </button>
+                    )}
                   </>
                 )}
                 {/* Personalized ordering only; filter UI removed intentionally */}
