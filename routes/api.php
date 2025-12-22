@@ -46,3 +46,6 @@ Route::match(['post', 'put', 'patch'], '/setting', [SettingController::class, 'u
 // Pariwisata API
 Route::get('/pariwisata', [PariwisataController::class, 'index']);
 Route::get('/pariwisata/{slug}', [PariwisataController::class, 'show']);
+
+// ===== Visitor Log API =====
+Route::post('/visitor-log', [\App\Http\Controllers\Api\VisitorLogController::class, 'log']);

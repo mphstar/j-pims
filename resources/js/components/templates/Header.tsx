@@ -5,7 +5,7 @@ import React from 'react';
 
 interface HeaderProps {
   active: number;
-  onJump: (i:number)=>void;
+  onJump: (i: number) => void;
   sections: SectionData[];
   brand?: string;
   backHref?: string;
@@ -13,36 +13,27 @@ interface HeaderProps {
   containerRef?: React.Ref<HTMLDivElement>;
 }
 
-export function Header({active,onJump,sections,brand,backHref,actions,containerRef}:HeaderProps){
+export function Header({ active, onJump, sections, brand, backHref, actions, containerRef }: HeaderProps) {
   const label = brand || 'Education';
   return (
-  <div ref={containerRef} className="fixed top-0 z-[60] px-3 md:px-8 py-3 border-b border-white/10 w-full">
+    <div ref={containerRef} className="fixed top-0 z-[60] px-3 md:px-8 py-3 border-b border-white/10 w-full">
       {/* Mobile layout */}
-      <div className="md:hidden relative flex items-center h-10">
-        {/* Left: back button or logo when no back */}
-        <div className="flex items-center">
+      <div className="md:hidden flex items-center justify-between w-full h-auto min-h-[40px] py-1">
+        {/* Left: Text Group */}
+        <div className="flex flex-col justify-center gap-0.5 max-w-[75%]">
+          <span className="text-white font-semibold tracking-wide text-sm leading-tight">{label}</span>
+          <span className="text-[10px] text-white/80 leading-tight">Jember Personalized Information Management System</span>
+        </div>
+
+        {/* Right: Actions only (Logo hidden on mobile) */}
+        <div className="flex items-center gap-2">
           {backHref ? (
-            <Link href={backHref} className="group inline-flex items-center gap-1.5 px-2 h-9 rounded-md border border-white/15 bg-white/5 hover:bg-white/15 text-white/80 hover:text-white text-xs font-medium transition" aria-label="Kembali">
-              <svg className="h-4 w-4 transition-transform group-hover:-translate-x-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
+            <Link href={backHref} className="p-1.5 text-white/80 hover:text-white transition bg-white/5 rounded-md border border-white/10" aria-label="Kembali">
+              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
             </Link>
           ) : (
-            <a href="#intro" onClick={(e)=>{e.preventDefault(); onJump(0);}} className="inline-flex items-center">
-              <Logo />
-            </a>
-          )}
-        </div>
-        {/* Center: title */}
-        <div className="absolute inset-x-0 flex justify-center pointer-events-none px-12">
-          <span className="pointer-events-auto max-w-[65%] truncate text-center text-white font-semibold tracking-wide text-sm">{label}</span>
-        </div>
-        {/* Right: logo if back exists, otherwise spacer */}
-        <div className="ml-auto flex items-center">
-          {backHref ? (
-            <a href="#intro" onClick={(e)=>{e.preventDefault(); onJump(0);}} className="inline-flex items-center">
-              <Logo />
-            </a>
-          ) : (
-            <span className="inline-block w-9" />
+            // Show actions (Search, Personalise, etc)
+            actions
           )}
         </div>
       </div>
@@ -55,10 +46,13 @@ export function Header({active,onJump,sections,brand,backHref,actions,containerR
             <span className="hidden sm:inline">Kembali</span>
           </Link>
         )}
-        <a href="#intro" className="flex items-center gap-2 group" onClick={(e)=>{e.preventDefault(); onJump(0);}}>
+        <Link href="/" className="flex items-center gap-3 group">
           <Logo />
-          <span className="text-white font-semibold tracking-wide text-base group-hover:opacity-90">{label}</span>
-        </a>
+          <div className="flex flex-col justify-center">
+            <span className="text-white font-semibold tracking-wide text-base group-hover:opacity-90 leading-tight">{label}</span>
+            <span className="text-[10px] text-white/70 leading-tight group-hover:text-white/90">Jember Personalized Information Management System</span>
+          </div>
+        </Link>
         {/* <nav className="flex gap-5 text-sm">
           {sections.map((s,i)=>{
             const lab = s.navLabel || s.title.split(' ')[0];

@@ -20,17 +20,18 @@ use Illuminate\Support\Facades\Route;
 //     return redirect()->route('frontend.index');
 // })->name('home');
 
-// Frontend Routes (Public)
-Route::get('/', [FrontendController::class, 'index'])->name('home');
-Route::get('/auto-play', [FrontendController::class, 'autoPlay'])->name('home.auto-play');
-Route::get('/search', [SearchController::class, 'index'])->name('search');
-// Cerita per destinasi (frontend)
-Route::get('/{slug}/cerita', [FrontendController::class, 'cerita'])->name('frontend.cerita');
-Route::get('/destinasi/{slug}/produk', [FrontendController::class, 'products'])->name('frontend.destination.products');
-Route::get('/destinasi/{slug}/produk/{product}', [FrontendController::class, 'product'])->name('frontend.product.view');
-// SEO friendly product page by destination slug
-Route::get('/{slug}/product', [FrontendController::class, 'productBySlug'])->name('frontend.product.by-slug');
-// Route::get('/view/{slug}', [FrontendController::class, 'show'])->name('frontend.show');
+// Frontend Routes (Public) - with visitor logging
+Route::middleware([\App\Http\Middleware\LogVisitor::class])->group(function () {
+    Route::get('/', [FrontendController::class, 'index'])->name('home');
+    Route::get('/auto-play', [FrontendController::class, 'autoPlay'])->name('home.auto-play');
+    Route::get('/search', [SearchController::class, 'index'])->name('search');
+    // Cerita per destinasi (frontend)
+    Route::get('/{slug}/cerita', [FrontendController::class, 'cerita'])->name('frontend.cerita');
+    Route::get('/destinasi/{slug}/produk', [FrontendController::class, 'products'])->name('frontend.destination.products');
+    Route::get('/destinasi/{slug}/produk/{product}', [FrontendController::class, 'product'])->name('frontend.product.view');
+    // SEO friendly product page by destination slug
+    Route::get('/{slug}/product', [FrontendController::class, 'productBySlug'])->name('frontend.product.by-slug');
+});
 
 // Admin Routes
 Route::get('/admin', function () {
@@ -52,6 +53,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('dashboard/stats', [DashboardController::class, 'getStats'])->name('dashboard.stats');
 
+    // Statistics
+    Route::get('statistics', [\App\Http\Controllers\StatisticsController::class, 'index'])->name('statistics');
+
 
     Route::prefix('user')->group(function () {
         Route::get('/', [UserController::class, 'index'])->name('user.index');
@@ -67,7 +71,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('store', [PariwisataController::class, 'store'])->name('pariwisata.store');
         Route::get('edit/{pariwisata}', [PariwisataController::class, 'edit'])->name('pariwisata.edit');
         Route::post('update/{pariwisata}', [PariwisataController::class, 'update'])->name('pariwisata.update');
-    Route::post('delete/{pariwisata}', [PariwisataController::class, 'destroy'])->name('pariwisata.destroy');
+        Route::post('delete/{pariwisata}', [PariwisataController::class, 'destroy'])->name('pariwisata.destroy');
         Route::post('delete-multiple', [PariwisataController::class, 'deleteMultiple'])->name('pariwisata.delete-multiple');
         Route::post('upload-background', [PariwisataController::class, 'uploadBackground'])->name('pariwisata.upload-background');
 
@@ -80,11 +84,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('{pariwisata}/cerita', [\App\Http\Controllers\Admin\CeritaController::class, 'byPariwisata'])->name('cerita.by-pariwisata');
         Route::get('{pariwisata}/cerita/create', [\App\Http\Controllers\Admin\CeritaController::class, 'createForPariwisata'])->name('cerita.create-for-pariwisata');
         Route::post('{pariwisata}/cerita', [\App\Http\Controllers\Admin\CeritaController::class, 'storeForPariwisata'])->name('cerita.store-for-pariwisata');
-    // Nested edit/update
-    Route::get('{pariwisata}/cerita/edit/{cerita}', [\App\Http\Controllers\Admin\CeritaController::class, 'editForPariwisata'])->name('cerita.edit-for-pariwisata');
-    Route::post('{pariwisata}/cerita/update/{cerita}', [\App\Http\Controllers\Admin\CeritaController::class, 'updateForPariwisata'])->name('cerita.update-for-pariwisata');
-    // Optional convenience: /pariwisata/{id}/cerita/edit?cerita=123 → redirect to nested edit or list
-    Route::get('{pariwisata}/cerita/edit', [\App\Http\Controllers\Admin\CeritaController::class, 'redirectEdit'])->name('cerita.redirect-edit');
+        // Nested edit/update
+        Route::get('{pariwisata}/cerita/edit/{cerita}', [\App\Http\Controllers\Admin\CeritaController::class, 'editForPariwisata'])->name('cerita.edit-for-pariwisata');
+        Route::post('{pariwisata}/cerita/update/{cerita}', [\App\Http\Controllers\Admin\CeritaController::class, 'updateForPariwisata'])->name('cerita.update-for-pariwisata');
+        // Optional convenience: /pariwisata/{id}/cerita/edit?cerita=123 → redirect to nested edit or list
+        Route::get('{pariwisata}/cerita/edit', [\App\Http\Controllers\Admin\CeritaController::class, 'redirectEdit'])->name('cerita.redirect-edit');
     });
 
     // Cerita (Admin)

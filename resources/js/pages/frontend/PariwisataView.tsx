@@ -11,6 +11,7 @@ import { NavDots } from "@/components/molecules/NavDots";
 import { Header } from "@/components/templates/Header";
 import { OnboardingDialog } from "@/components/molecules/OnboardingDialog";
 import { calculatePersonalizationScore, getPersonalizationBadge, getPersonalizationDetails, isPersonalized } from "@/utils/personalization";
+import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
 
 // Database interfaces
 interface MetadataType {
@@ -106,7 +107,7 @@ export default function PariwisataView({
   autoPlayIntervalMs = 8000,
 }: Props) {
 
-  
+
 
   // Check if we have 'open' query parameter for direct link mode
   const [isDirectLink, setIsDirectLink] = useState(false);
@@ -246,8 +247,8 @@ export default function PariwisataView({
     const products = dest.products && dest.products.length > 0 ? dest.products : [{ ...dest } as ProductType];
     const activeIdx = Math.min(Math.max(0, selectedProductIdx[dest.slug] ?? 0), products.length - 1);
     const active = products[activeIdx];
-  // Overlay source: keep destination overlays for the wisata page to avoid unexpected replacement by product overlays
-  const overlays = dest.overlays || [];
+    // Overlay source: keep destination overlays for the wisata page to avoid unexpected replacement by product overlays
+    const overlays = dest.overlays || [];
     const alignVal = (active.align || dest.align) as 'left' | 'right';
 
     // Calculate personalization across ALL products to surface at destination level
@@ -337,7 +338,7 @@ export default function PariwisataView({
               ))}
             </div>
           )}
-          <p className="text-white/90">{dest.content}</p>
+          <MarkdownRenderer content={dest.content} className="text-white/90" />
         </div>
       ),
       ctaHref: dest.slug ? `/${dest.slug}/cerita` : (dest.cta_href || '#'),
@@ -348,8 +349,8 @@ export default function PariwisataView({
     } as SectionData & { personalizationScore: number };
   });
 
-  
-  
+
+
 
   // Personalized ordering: sort by personalization score + label preferences + click history
   const SECTIONS = [...baseSections].sort((a, b) => {
@@ -473,15 +474,7 @@ export default function PariwisataView({
   }, [ready, normalizedDestinations]);
 
   // Konfigurasi kecepatan animasi (mudah diubah)
-  const SCROLL_CONF = {
-    overshootRatio: 0.08,      // semula 0.12 (lebih kecil => lebih tenang)
-    overshootMin: 36,          // px (semula 48)
-    overshootMax: 100,         // px (semula 140)
-    phase1Duration: 0.38,      // semula 0.27
-    directDuration: 0.55,      // semula 0.42
-    springStiffness: 150,      // semula 210
-    springDamping: 30,         // semula 28 (lebih tinggi => cepat settle tanpa bounce liar)
-  } as const;
+
   // gunakan union | null eksplisit agar konsisten dengan prop ScrollProgress
   const containerRef = useRef<HTMLDivElement | null>(null);
   const sectionRefs = useRef<(HTMLDivElement | null)[]>([]);
@@ -680,58 +673,11 @@ export default function PariwisataView({
     }
 
     // Original column layout listeners
-    const el = containerRef.current;
-    if (!el) return;
-    const lastRef = { current: 0 };
-    const cooldown = 420;
-    const nearestIndex = () => {
-      const container = containerRef.current; if (!container) return active;
-      const st = container.scrollTop; const ch = container.clientHeight;
-      let best = 0; let bestDist = Number.POSITIVE_INFINITY;
-      sectionRefs.current.forEach((sec, i) => {
-        if (!sec) return; const mid = sec.offsetTop + sec.offsetHeight / 2;
-        const dist = Math.abs((st + ch / 2) - mid); if (dist < bestDist) { bestDist = dist; best = i; }
-      });
-      return best;
-    };
-    const onWheel = (e: WheelEvent) => {
-      if (isStabilizingRef.current) { e.preventDefault(); return; }
-      if (isAnimatingRef.current) { e.preventDefault(); return; }
-      if (Math.abs(e.deltaY) < Math.abs(e.deltaX)) return;
-      const now = performance.now();
-      if (now - lastRef.current < cooldown) return; // biarkan native mikro-geser di antara cooldown
-      if (Math.abs(e.deltaY) < 40) return;
-      e.preventDefault();
-      lastRef.current = now;
-      const current = nearestIndex();
-      let next = current + (e.deltaY > 0 ? 1 : -1);
-      if (next < 0) next = 0; else if (next >= SECTIONS.length) next = SECTIONS.length - 1;
-      if (next !== active) scrollToIndex(next);
-    };
-    el.addEventListener('wheel', onWheel, { passive: false });
-    return () => el.removeEventListener('wheel', onWheel);
+
   }, [active, ready]);
 
   // ===== Mobile natural snap assist (sederhana anti-glitch) =====
-  useEffect(() => {
-    if (!ready || isRowLayout) return; // skip for carousel mode
-    const el = containerRef.current;
-    if (!el) return;
-    const isCoarse = window.matchMedia('(pointer:coarse)').matches; if (!isCoarse) return;
-    let idleTimer: number | null = null;
-    const IDLE_DELAY = 120; // ms setelah momentum berhenti
-    const snapToNearest = () => {
-      if (isAnimatingRef.current) return; const container = containerRef.current; if (!container) return;
-      const scrollTop = container.scrollTop; let best = 0; let bestDist = Infinity;
-      sectionRefs.current.forEach((sec, i) => { if (!sec) return; const d = Math.abs(sec.offsetTop - scrollTop); if (d < bestDist) { bestDist = d; best = i; } });
-      const target = sectionRefs.current[best]; if (!target) return; const diff = Math.abs(target.offsetTop - scrollTop); if (diff < 14) return;
-      // Gunakan native smooth agar tidak jitter (tanpa overshoot)
-      container.scrollTo({ top: target.offsetTop, behavior: 'smooth' });
-    };
-    const onScroll = () => { if (idleTimer) clearTimeout(idleTimer); idleTimer = window.setTimeout(snapToNearest, IDLE_DELAY); };
-    el.addEventListener('scroll', onScroll, { passive: true });
-    return () => { el.removeEventListener('scroll', onScroll); if (idleTimer) clearTimeout(idleTimer); };
-  }, [active, ready, isRowLayout]);
+
 
   // ===== Autoplay loop for snap scroll (used on /auto-play) =====
   useEffect(() => {
@@ -749,9 +695,12 @@ export default function PariwisataView({
       <div className="h-screen w-screen flex items-center justify-center bg-black text-white relative overflow-hidden" aria-busy="true" aria-label="Memuat aset">
         <div className="absolute inset-0 opacity-40 [mask-image:radial-gradient(circle_at_center,white,transparent_70%)] animate-pulse pointer-events-none bg-[conic-gradient(from_0deg,rgba(255,255,255,0.08),rgba(255,255,255,0)_55%,rgba(255,255,255,0.08))]" />
         <div className="relative z-10 flex flex-col items-center gap-8 px-6">
-          <div className="flex items-center gap-4">
+          <div className="flex flex-col text-center items-center gap-4">
             <Logo />
-            <span className="font-semibold tracking-wide text-lg">J-PiMS</span>
+            <div className="flex flex-col">
+              <span className="font-semibold tracking-wide text-lg">J-PiMS</span>
+              <span className="text-sm text-white/80 ">Jember Personalized Information Management System</span>
+            </div>
           </div>
           <div className="w-64 h-2 bg-white/10 rounded-full overflow-hidden">
             <div className="h-full bg-white transition-[width] duration-300 ease-out" style={{ width: `${Math.round(progress * 100)}%` }} />
@@ -773,12 +722,10 @@ export default function PariwisataView({
           }}
           labels={allLabels}
           initialPrefLabels={prefLabels}
-          initialMotion={reducedMotion ? 'reduced' : 'high'}
           metadataOptions={metadataOptions}
           metadataDetails={metadataDetails}
-          onSave={({ prefLabels: pl, motion, activityLevels: als, priceRanges: prs, bestSeasons: bss }) => {
+          onSave={({ prefLabels: pl, activityLevels: als, priceRanges: prs, bestSeasons: bss }) => {
             setPrefLabels(pl);
-            setReducedMotion(motion === 'reduced');
             if (als) setActivityLevels(als);
             if (prs) setPriceRanges(prs);
             if (bss) setBestSeasons(bss);
@@ -881,7 +828,6 @@ export default function PariwisataView({
           ref={containerRef}
           data-scroll-root="true"
           className="h-screen w-screen overflow-y-scroll snap-y snap-mandatory scrollbar-none relative bg-black"
-          style={{ scrollPaddingTop: '56px' }}
         >
           <Header
             active={active}
@@ -894,9 +840,10 @@ export default function PariwisataView({
                   // Direct link mode - only show back button
                   <Link
                     href={route('home')}
-                    className="px-3 h-9 rounded-md border border-white/15 bg-white/5 hover:bg-white/15 text-white/80 hover:text-white text-xs font-medium transition flex items-center justify-center"
+                    className="px-2 sm:px-3 h-9 rounded-md border border-white/15 bg-white/5 hover:bg-white/15 text-white/80 hover:text-white text-xs font-medium transition flex items-center justify-center gap-2"
                   >
-                    Kembali
+                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
+                    <span className="hidden sm:inline">Kembali</span>
                   </Link>
                 ) : (
                   <>
@@ -915,16 +862,20 @@ export default function PariwisataView({
                       >
                         <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
                       </svg>
-                      Cari
+                      <span className="hidden sm:inline">Cari</span>
                     </Link>
                     {personalizationActive && (
                       <button
                         onClick={() => {
                           setOnboardingOpen(true);
                         }}
-                        className="px-3 h-9 rounded-md border border-white/15 bg-white/5 hover:bg-white/15 text-white/80 hover:text-white text-xs font-medium transition flex items-center justify-center"
+                        className="px-2 sm:px-3 h-9 rounded-md border border-white/15 bg-white/5 hover:bg-white/15 text-white/80 hover:text-white text-xs font-medium transition flex items-center justify-center gap-2"
                       >
-                        Personalisasi
+                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                        <span className="hidden sm:inline">Personalisasi</span>
                       </button>
                     )}
                   </>
@@ -948,8 +899,9 @@ export default function PariwisataView({
           <ScrollProgress targetRef={containerRef} />
           <ArrowNav active={active} onJump={scrollToIndex} total={SECTIONS.length} />
           <CursorBullet />
-        </div>
-      )}
+        </div >
+      )
+      }
     </>
   );
 }

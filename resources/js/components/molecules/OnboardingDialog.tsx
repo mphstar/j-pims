@@ -1,12 +1,12 @@
 ﻿import * as Dialog from '@radix-ui/react-dialog';
 import { useState } from 'react';
+import { Logo } from '@/components/atoms/Logo';
 
 interface OnboardingDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   labels: string[];
   initialPrefLabels: string[];
-  initialMotion: 'high' | 'reduced';
   metadataOptions?: {
     activity_levels: string[];
     price_ranges: string[];
@@ -21,7 +21,6 @@ interface OnboardingDialogProps {
   };
   onSave: (data: {
     prefLabels: string[];
-    motion: 'high' | 'reduced';
     activityLevels?: string[];
     priceRanges?: string[];
     bestSeasons?: string[];
@@ -33,7 +32,6 @@ export function OnboardingDialog({
   onOpenChange,
   labels,
   initialPrefLabels,
-  initialMotion,
   metadataOptions,
   metadataDetails,
   onSave,
@@ -43,7 +41,6 @@ export function OnboardingDialog({
   const [priceRangesSel, setPriceRangesSel] = useState<string[]>([]);
   const [bestSeasonsSel, setBestSeasonsSel] = useState<string[]>([]);
   const [prefLabels, setPrefLabels] = useState<string[]>(initialPrefLabels);
-  const [motion, setMotion] = useState<'high' | 'reduced'>(initialMotion);
 
   // Debug: Log metadataDetails only once
   useState(() => {
@@ -86,7 +83,6 @@ export function OnboardingDialog({
   const handleSave = () => {
     onSave({
       prefLabels,
-      motion,
       activityLevels: activityLevelsSel.length ? activityLevelsSel : undefined,
       priceRanges: priceRangesSel.length ? priceRangesSel : undefined,
       bestSeasons: bestSeasonsSel.length ? bestSeasonsSel : undefined,
@@ -150,7 +146,7 @@ export function OnboardingDialog({
 
   const getSeasonIcon = (season: string) => {
     const detail = metadataDetails?.visit_times?.find(v => v.key === season);
-    if (step === 3) console.log(`Season icon for "${season}":`, detail?.icon, 'Full detail:', detail);
+    if (step === 4) console.log(`Season icon for "${season}":`, detail?.icon, 'Full detail:', detail);
     if (detail?.icon) return detail.icon;
     // Fallback icons
     if (season === 'pagi') return '🌅';
@@ -169,7 +165,7 @@ export function OnboardingDialog({
 
   const getSeasonSubtitle = (season: string) => {
     const detail = metadataDetails?.visit_times?.find(v => v.key === season);
-    if (step === 3) console.log(`Season subtitle for "${season}":`, detail?.subtitle);
+    if (step === 4) console.log(`Season subtitle for "${season}":`, detail?.subtitle);
     return detail?.subtitle || '';
   };
 
@@ -188,7 +184,7 @@ export function OnboardingDialog({
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
-        <Dialog.Content className="fixed left-[50%] top-[50%] z-50 w-full max-w-2xl max-h-[90vh] translate-x-[-50%] translate-y-[-50%] bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border border-white/10 shadow-2xl duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] rounded-2xl overflow-hidden flex flex-col">
+        <Dialog.Content className="fixed left-[50%] top-[50%] z-50 w-full max-w-[90%] md:max-w-2xl max-h-[90vh] translate-x-[-50%] translate-y-[-50%] bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border border-white/10 shadow-2xl duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] rounded-2xl overflow-hidden flex flex-col">
           {/* Progress Bar */}
           <div className="h-1 bg-white/5 w-full">
             <div
@@ -199,8 +195,41 @@ export function OnboardingDialog({
 
           {/* Content Area - Scrollable */}
           <div className="flex-1 overflow-y-auto px-6 py-8 md:px-10 md:py-10">
-            {/* Step 0: Welcome */}
+            {/* Step 0: Intro (New) */}
             {step === 0 && (
+              <div className="flex flex-col items-center justify-center space-y-8 text-center animate-in fade-in slide-in-from-bottom-4 duration-500 h-full">
+                <div className="flex-1 flex flex-col items-center justify-center space-y-6">
+                  <div className="scale-150 p-4">
+                    <Logo />
+                  </div>
+
+                  <div className="space-y-4">
+                    <h1 className="text-4xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">
+                      J-PIMS
+                    </h1>
+                    <h2 className="text-xl md:text-2xl font-semibold text-white">
+                      Jember Tourism Information Management System
+                    </h2>
+                  </div>
+
+                  <p className="text-lg text-white/70 max-w-md mx-auto leading-relaxed">
+                    Jelajahi keindahan Jember dengan cara baru. Dapatkan rekomendasi wisata yang dipersonalisasi khusus untuk gaya liburan Anda.
+                  </p>
+                </div>
+
+                <div className="mt-auto pt-8 border-t border-white/5 w-full">
+                  <p className="text-sm text-white/40 uppercase tracking-widest font-medium">
+                    Developed by
+                  </p>
+                  <p className="text-base text-white/80 font-semibold mt-1">
+                    Politeknik Negeri Jember
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Step 1: Welcome (Was 0) */}
+            {step === 1 && (
               <div className="space-y-6 text-center animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <div className="text-6xl mb-4">🗺️</div>
                 <Dialog.Title className="text-3xl md:text-4xl font-bold text-white mb-3">
@@ -209,7 +238,7 @@ export function OnboardingDialog({
                 <Dialog.Description className="text-lg text-white/70 max-w-xl mx-auto leading-relaxed">
                   Mari personalisasi pengalaman Anda dalam beberapa langkah sederhana. Kami akan merekomendasikan destinasi yang paling sesuai dengan preferensi Anda.
                 </Dialog.Description>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8 text-left">
                   <div className="bg-white/5 border border-white/10 rounded-xl p-4 hover:bg-white/10 transition">
                     <div className="text-3xl mb-2">✨</div>
@@ -230,8 +259,8 @@ export function OnboardingDialog({
               </div>
             )}
 
-            {/* Step 1: Activity Level */}
-            {step === 1 && (
+            {/* Step 2: Activity Level (Was 1) */}
+            {step === 2 && (
               <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
                 <div className="text-center mb-8">
                   <div className="text-5xl mb-4">🏃</div>
@@ -246,11 +275,10 @@ export function OnboardingDialog({
                     <button
                       key={level}
                       onClick={() => toggleStringIn(level, activityLevelsSel, setActivityLevelsSel)}
-                      className={`p-6 rounded-xl border-2 transition-all duration-300 hover:scale-105 ${
-                        activityLevelsSel.includes(level)
-                          ? 'border-purple-500 bg-purple-500/20 shadow-lg shadow-purple-500/30'
-                          : 'border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/10'
-                      }`}
+                      className={`p-6 rounded-xl border-2 transition-all duration-300 hover:scale-105 ${activityLevelsSel.includes(level)
+                        ? 'border-purple-500 bg-purple-500/20 shadow-lg shadow-purple-500/30'
+                        : 'border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/10'
+                        }`}
                     >
                       <div className="text-4xl mb-3">{getActivityIcon(level)}</div>
                       <div className="text-white font-semibold text-lg mb-1">
@@ -265,8 +293,8 @@ export function OnboardingDialog({
               </div>
             )}
 
-            {/* Step 2: Price Range */}
-            {step === 2 && (
+            {/* Step 3: Price Range (Was 2) */}
+            {step === 3 && (
               <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
                 <div className="text-center mb-8">
                   <div className="text-5xl mb-4">💰</div>
@@ -281,11 +309,10 @@ export function OnboardingDialog({
                     <button
                       key={range}
                       onClick={() => toggleStringIn(range, priceRangesSel, setPriceRangesSel)}
-                      className={`p-6 rounded-xl border-2 transition-all duration-300 hover:scale-105 ${
-                        priceRangesSel.includes(range)
-                          ? 'border-amber-500 bg-amber-500/20 shadow-lg shadow-amber-500/30'
-                          : 'border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/10'
-                      }`}
+                      className={`p-6 rounded-xl border-2 transition-all duration-300 hover:scale-105 ${priceRangesSel.includes(range)
+                        ? 'border-amber-500 bg-amber-500/20 shadow-lg shadow-amber-500/30'
+                        : 'border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/10'
+                        }`}
                     >
                       <div className="text-4xl mb-3">{getPriceIcon(range)}</div>
                       <div className="text-white font-semibold text-lg mb-1">
@@ -300,8 +327,8 @@ export function OnboardingDialog({
               </div>
             )}
 
-            {/* Step 3: Best Season */}
-            {step === 3 && (
+            {/* Step 4: Best Season (Was 3) */}
+            {step === 4 && (
               <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
                 <div className="text-center mb-8">
                   <div className="text-5xl mb-4">📅</div>
@@ -316,11 +343,10 @@ export function OnboardingDialog({
                     <button
                       key={season}
                       onClick={() => toggleStringIn(season, bestSeasonsSel, setBestSeasonsSel)}
-                      className={`p-6 rounded-xl border-2 transition-all duration-300 hover:scale-[1.02] ${
-                        bestSeasonsSel.includes(season)
-                          ? 'border-cyan-500 bg-cyan-500/20 shadow-lg shadow-cyan-500/30'
-                          : 'border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/10'
-                      }`}
+                      className={`p-6 rounded-xl border-2 transition-all duration-300 hover:scale-[1.02] ${bestSeasonsSel.includes(season)
+                        ? 'border-cyan-500 bg-cyan-500/20 shadow-lg shadow-cyan-500/30'
+                        : 'border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/10'
+                        }`}
                     >
                       <div className="flex items-center gap-4">
                         <div className="text-4xl">{getSeasonIcon(season)}</div>
@@ -337,8 +363,8 @@ export function OnboardingDialog({
               </div>
             )}
 
-            {/* Step 4: Label Preferences */}
-            {step === 4 && (
+            {/* Step 5: Label Preferences (Was 4) */}
+            {step === 5 && (
               <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
                 <div className="text-center mb-8">
                   <div className="text-5xl mb-4">🏖️</div>
@@ -354,11 +380,10 @@ export function OnboardingDialog({
                       <button
                         key={label}
                         onClick={() => toggleLabel(label)}
-                        className={`px-5 py-3 rounded-full border-2 transition-all duration-300 hover:scale-105 ${
-                          prefLabels.includes(label)
-                            ? 'border-blue-500 bg-blue-500/20 text-white shadow-lg shadow-blue-500/30'
-                            : 'border-white/20 bg-white/5 text-white/70 hover:border-white/30 hover:text-white'
-                        }`}
+                        className={`px-5 py-3 rounded-full border-2 transition-all duration-300 hover:scale-105 ${prefLabels.includes(label)
+                          ? 'border-blue-500 bg-blue-500/20 text-white shadow-lg shadow-blue-500/30'
+                          : 'border-white/20 bg-white/5 text-white/70 hover:border-white/30 hover:text-white'
+                          }`}
                       >
                         <span className="mr-2">{getLabelIcon(label)}</span>
                         <span className="font-medium">{label}</span>
@@ -373,50 +398,7 @@ export function OnboardingDialog({
               </div>
             )}
 
-            {/* Step 5: Motion Preference */}
-            {step === 5 && (
-              <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
-                <div className="text-center mb-8">
-                  <div className="text-5xl mb-4">✨</div>
-                  <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">
-                    Preferensi Animasi
-                  </h2>
-                  <p className="text-white/60">Pilih pengalaman visual yang Anda inginkan</p>
-                </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <button
-                    onClick={() => setMotion('high')}
-                    className={`p-8 rounded-xl border-2 transition-all duration-300 hover:scale-105 ${
-                      motion === 'high'
-                        ? 'border-purple-500 bg-purple-500/20 shadow-lg shadow-purple-500/30'
-                        : 'border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/10'
-                    }`}
-                  >
-                    <div className="text-5xl mb-4">🎭</div>
-                    <div className="text-white font-semibold text-xl mb-2">Animasi Penuh</div>
-                    <div className="text-white/50 text-sm">
-                      Pengalaman visual yang dinamis dan menarik
-                    </div>
-                  </button>
-
-                  <button
-                    onClick={() => setMotion('reduced')}
-                    className={`p-8 rounded-xl border-2 transition-all duration-300 hover:scale-105 ${
-                      motion === 'reduced'
-                        ? 'border-purple-500 bg-purple-500/20 shadow-lg shadow-purple-500/30'
-                        : 'border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/10'
-                    }`}
-                  >
-                    <div className="text-5xl mb-4">🎨</div>
-                    <div className="text-white font-semibold text-xl mb-2">Animasi Minimal</div>
-                    <div className="text-white/50 text-sm">
-                      Tampilan yang lebih tenang dan stabil
-                    </div>
-                  </button>
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Footer Navigation */}

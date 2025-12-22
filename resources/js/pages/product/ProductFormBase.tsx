@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useForm, router, usePage } from '@inertiajs/react';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
+import { MarkdownEditor } from '@/components/ui/MarkdownEditor';
+import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
@@ -50,11 +51,11 @@ const defaultValues = {
   align: 'left' as 'left' | 'right'
 };
 
-export default function ProductFormBase({ 
-  item, 
-  mode, 
-  overlays = [], 
-  destinations, 
+export default function ProductFormBase({
+  item,
+  mode,
+  overlays = [],
+  destinations,
   selectedPariwisataId,
   activityLevels = [],
   priceRanges = [],
@@ -69,12 +70,12 @@ export default function ProductFormBase({
   const { data, setData, processing, errors, clearErrors } = useForm<{ [K in keyof typeof defaultValues]: (typeof defaultValues)[K] } & { background_image?: File | null }>({ ...defaultValues, background_image: null });
   const [bgPreview, setBgPreview] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
-  
+
   // Preference state
   const [activityLevelIds, setActivityLevelIds] = useState<number[]>(selectedActivityLevelIds);
   const [priceRangeIds, setPriceRangeIds] = useState<number[]>(selectedPriceRangeIds);
   const [visitTimeIds, setVisitTimeIds] = useState<number[]>(selectedVisitTimeIds);
-  
+
   const [previewOpen, setPreviewOpen] = useState(false);
   const [overlayList, setOverlayList] = useState<OverlayType[]>(overlays.map(o => ({ ...o, __dirty: false })));
   const [activeOverlayId, setActiveOverlayId] = useState<number | null>(null);
@@ -97,7 +98,7 @@ export default function ProductFormBase({
       setData({ ...defaultValues, pariwisata_id: initId });
     }
   }, [editing, item, destinations, selectedPariwisataId]);
-  
+
   // Sync preference IDs when props change (important for edit mode)
   useEffect(() => {
     setActivityLevelIds(selectedActivityLevelIds);
@@ -211,7 +212,7 @@ export default function ProductFormBase({
           {data.label && <span className='text-xs uppercase tracking-wider bg-white/20 px-2 py-1 rounded'>{data.label}</span>}
           <h1 className='text-7xl font-extrabold leading-none'>{data.title || 'Judul Belum Diisi'}</h1>
           {data.subtitle && <h2 className='text-lg opacity-80'>{data.subtitle}</h2>}
-          {data.content && <p className='text-sm leading-relaxed whitespace-pre-line'>{data.content}</p>}
+          {data.content && <MarkdownRenderer content={data.content} className='text-sm leading-relaxed text-white/90' />}
           {(data.cta_label || data.cta_href) && (
             <a href={data.cta_href || '#'} className='inline-block bg-transparent border-[2px] mt-3 border-white px-4 py-2 rounded shadow hover:opacity-90 transition'>
               {data.cta_label || 'Lanjut'}
@@ -264,8 +265,8 @@ export default function ProductFormBase({
             <Input value={data.subtitle} onChange={e => setData('subtitle', e.target.value)} />
           </div>
           <div className='space-y-2'>
-            <Label className='text-sm font-medium'>Content</Label>
-            <Textarea value={data.content} rows={4} onChange={e => setData('content', e.target.value)} />
+            <Label className='text-sm font-medium'>Content (Markdown)</Label>
+            <MarkdownEditor value={data.content} onChange={(val) => setData('content', val)} height={200} />
           </div>
           <div className='space-y-2'>
             <Label className='text-sm font-medium'>Background Image</Label>
@@ -308,7 +309,7 @@ export default function ProductFormBase({
                 </div>
               </div>
             </div>
-            
+
             {/* Activity Levels */}
             <div className='space-y-3'>
               <div className='flex items-center gap-2'>
@@ -317,12 +318,12 @@ export default function ProductFormBase({
               </div>
               <div className='grid grid-cols-1 gap-2'>
                 {activityLevels.map(al => (
-                  <label 
-                    key={al.id} 
+                  <label
+                    key={al.id}
                     className={cn(
                       'flex items-start gap-3 p-3 rounded-lg border-2 transition-all cursor-pointer hover:border-primary/50 hover:bg-accent/50',
-                      activityLevelIds.includes(al.id) 
-                        ? 'border-primary bg-primary/5 shadow-sm' 
+                      activityLevelIds.includes(al.id)
+                        ? 'border-primary bg-primary/5 shadow-sm'
                         : 'border-border bg-background'
                     )}
                   >
@@ -358,12 +359,12 @@ export default function ProductFormBase({
               </div>
               <div className='grid grid-cols-1 gap-2'>
                 {priceRanges.map(pr => (
-                  <label 
-                    key={pr.id} 
+                  <label
+                    key={pr.id}
                     className={cn(
                       'flex items-start gap-3 p-3 rounded-lg border-2 transition-all cursor-pointer hover:border-primary/50 hover:bg-accent/50',
-                      priceRangeIds.includes(pr.id) 
-                        ? 'border-primary bg-primary/5 shadow-sm' 
+                      priceRangeIds.includes(pr.id)
+                        ? 'border-primary bg-primary/5 shadow-sm'
                         : 'border-border bg-background'
                     )}
                   >
@@ -399,12 +400,12 @@ export default function ProductFormBase({
               </div>
               <div className='grid grid-cols-1 gap-2'>
                 {visitTimes.map(vt => (
-                  <label 
-                    key={vt.id} 
+                  <label
+                    key={vt.id}
                     className={cn(
                       'flex items-start gap-3 p-3 rounded-lg border-2 transition-all cursor-pointer hover:border-primary/50 hover:bg-accent/50',
-                      visitTimeIds.includes(vt.id) 
-                        ? 'border-primary bg-primary/5 shadow-sm' 
+                      visitTimeIds.includes(vt.id)
+                        ? 'border-primary bg-primary/5 shadow-sm'
                         : 'border-border bg-background'
                     )}
                   >
@@ -556,7 +557,8 @@ export default function ProductFormBase({
                               <Button size='sm' variant='ghost' onClick={() => setActiveOverlayId(null)} className='h-6 px-2 text-[10px]'>Close</Button>
                             </div>
                           </div>
-                        )})()}
+                        )
+                      })()}
                     </div>
                   )}
                 </div>

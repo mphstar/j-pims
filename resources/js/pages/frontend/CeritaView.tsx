@@ -7,6 +7,7 @@ import { NavDots } from '@/components/molecules/NavDots';
 import { Header } from '@/components/templates/Header';
 import { ScrollProgress } from '@/components/molecules/ScrollProgress';
 import { Logo } from '@/components/atoms/Logo';
+import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
 
 interface DestinationOverlay {
     overlay_url: string;
@@ -68,37 +69,37 @@ export default function CeritaView({ stories, productHref }: Props) {
         });
     }, [stories]);
 
-        const sections: SectionData[] = (stories || []).map((story, idx) => {
-            const isLast = idx === (stories?.length || 0) - 1;
-            return ({
-        id: story.slug + '-' + idx,
-        slug: story.slug,
-        label: story.label || undefined,
-        title: story.title,
-        navLabel: story.label || story.title || `Cerita ${idx + 1}`,
-        subtitle: story.subtitle || undefined,
-        bg: story.background_url || undefined,
-        overlays: (story.overlays || []).map(ov => ({
-            url: ov.overlay_url,
-            position_horizontal: ov.position_horizontal,
-            position_vertical: ov.position_vertical,
-            object_fit: ov.object_fit,
-            width: ov.width,
-            height: ov.height,
-        })),
-        align: story.align,
-        content: (
-            <div className={"max-w-xl space-y-4 " + (story.align === 'right' ? 'ml-auto text-right' : '')}>
-                {story.content && (
-                    <p className="text-white/90">{story.content}</p>
-                )}
-            </div>
-        ),
+    const sections: SectionData[] = (stories || []).map((story, idx) => {
+        const isLast = idx === (stories?.length || 0) - 1;
+        return ({
+            id: story.slug + '-' + idx,
+            slug: story.slug,
+            label: story.label || undefined,
+            title: story.title,
+            navLabel: story.label || story.title || `Cerita ${idx + 1}`,
+            subtitle: story.subtitle || undefined,
+            bg: story.background_url || undefined,
+            overlays: (story.overlays || []).map(ov => ({
+                url: ov.overlay_url,
+                position_horizontal: ov.position_horizontal,
+                position_vertical: ov.position_vertical,
+                object_fit: ov.object_fit,
+                width: ov.width,
+                height: ov.height,
+            })),
+            align: story.align,
+            content: (
+                <div className={"max-w-xl space-y-4 " + (story.align === 'right' ? 'ml-auto text-right' : '')}>
+                    {story.content && (
+                        <MarkdownRenderer content={story.content} className="text-white/90" />
+                    )}
+                </div>
+            ),
             // Show CTA only on the last section
             ctaHref: isLast ? productHref : undefined,
             ctaLabel: isLast ? 'Lihat Produk' : undefined,
         });
-        });
+    });
 
     // Keep header/nav dots in sync (same as PariwisataView)
     useEffect(() => {
@@ -134,57 +135,7 @@ export default function CeritaView({ stories, productHref }: Props) {
         container.scrollTo({ top: targetEl.offsetTop, behavior: 'smooth' });
     };
 
-    // Wheel-based paging like PariwisataView (column layout)
-    useEffect(() => {
-        if (!ready) return;
-        const el = containerRef.current; if (!el) return;
-        const lastRef = { current: 0 } as { current: number };
-        const cooldown = 420;
-        const nearestIndex = () => {
-            const container = containerRef.current; if (!container) return active;
-            const st = container.scrollTop; const ch = container.clientHeight;
-            let best = 0; let bestDist = Number.POSITIVE_INFINITY;
-            sectionRefs.current.forEach((sec, i) => {
-                if (!sec) return; const mid = sec.offsetTop + sec.offsetHeight / 2;
-                const dist = Math.abs((st + ch / 2) - mid); if (dist < bestDist) { bestDist = dist; best = i; }
-            });
-            return best;
-        };
-        const onWheel = (e: WheelEvent) => {
-            if (isAnimatingRef.current) { e.preventDefault(); return; }
-            if (Math.abs(e.deltaY) < Math.abs(e.deltaX)) return;
-            const now = performance.now();
-            if (now - lastRef.current < cooldown) return;
-            if (Math.abs(e.deltaY) < 40) return;
-            e.preventDefault();
-            lastRef.current = now;
-            const current = nearestIndex();
-            let next = current + (e.deltaY > 0 ? 1 : -1);
-            if (next < 0) next = 0; else if (next >= sections.length) next = sections.length - 1;
-            if (next !== active) scrollToIndex(next);
-        };
-        el.addEventListener('wheel', onWheel, { passive: false });
-        return () => el.removeEventListener('wheel', onWheel);
-    }, [active, ready]);
 
-    // Mobile natural snap assist (like PariwisataView)
-    useEffect(() => {
-        if (!ready) return;
-        const el = containerRef.current; if (!el) return;
-        const isCoarse = window.matchMedia('(pointer:coarse)').matches; if (!isCoarse) return;
-        let idleTimer: number | null = null;
-        const IDLE_DELAY = 120;
-        const snapToNearest = () => {
-            if (isAnimatingRef.current) return; const container = containerRef.current; if (!container) return;
-            const scrollTop = container.scrollTop; let best = 0; let bestDist = Infinity;
-            sectionRefs.current.forEach((sec, i) => { if (!sec) return; const d = Math.abs(sec.offsetTop - scrollTop); if (d < bestDist) { bestDist = d; best = i; } });
-            const target = sectionRefs.current[best]; if (!target) return; const diff = Math.abs(target.offsetTop - scrollTop); if (diff < 14) return;
-            container.scrollTo({ top: target.offsetTop, behavior: 'smooth' });
-        };
-        const onScroll = () => { if (idleTimer) clearTimeout(idleTimer); idleTimer = window.setTimeout(snapToNearest, IDLE_DELAY); };
-        el.addEventListener('scroll', onScroll, { passive: true });
-        return () => { el.removeEventListener('scroll', onScroll); if (idleTimer) clearTimeout(idleTimer); };
-    }, [active, ready]);
 
     if (!ready) {
         return (
@@ -211,7 +162,6 @@ export default function CeritaView({ stories, productHref }: Props) {
                 ref={containerRef}
                 data-scroll-root="true"
                 className="h-screen w-screen overflow-y-scroll snap-y snap-mandatory scrollbar-none relative bg-red-500"
-                style={{ scrollPaddingTop: '56px' }}
             >
                 <Header
                     active={active}
@@ -223,7 +173,7 @@ export default function CeritaView({ stories, productHref }: Props) {
                         <div className="flex items-center gap-2">
                             <Link
                                 href={route('search')}
-                                className="px-3 h-9 rounded-md border border-white/15 bg-white/5 hover:bg-white/15 text-white/80 hover:text-white text-xs font-medium transition flex items-center gap-2"
+                                className="px-2 sm:px-3 h-9 rounded-md border border-white/15 bg-white/5 hover:bg-white/15 text-white/80 hover:text-white text-xs font-medium transition flex items-center justify-center gap-2"
                             >
                                 <svg
                                     xmlns="http://www.w3.org/2000/svg"
@@ -235,13 +185,14 @@ export default function CeritaView({ stories, productHref }: Props) {
                                 >
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
                                 </svg>
-                                Cari
+                                <span className="hidden sm:inline">Cari</span>
                             </Link>
                             <Link
                                 href={route('home')}
-                                className="px-3 h-9 rounded-md border border-white/15 bg-white/5 hover:bg-white/15 text-white/80 hover:text-white text-xs font-medium transition flex items-center justify-center"
+                                className="px-2 sm:px-3 h-9 rounded-md border border-white/15 bg-white/5 hover:bg-white/15 text-white/80 hover:text-white text-xs font-medium transition flex items-center justify-center gap-2"
                             >
-                                Kembali
+                                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
+                                <span className="hidden sm:inline">Kembali</span>
                             </Link>
                         </div>
                     )}
@@ -249,7 +200,7 @@ export default function CeritaView({ stories, productHref }: Props) {
                 <NavDots count={sections.length} active={active} onJump={scrollToIndex} sections={sections} />
 
                 {sections.map((s, i) => (
-                    
+
                     <Section
                         key={s.id}
                         ref={(el: HTMLDivElement | null) => { sectionRefs.current[i] = el; }}

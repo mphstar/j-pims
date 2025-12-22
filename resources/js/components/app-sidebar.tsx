@@ -18,6 +18,7 @@ import {
     DollarSign,
     Clock,
     MapPin,
+    BarChart3,
 } from 'lucide-react';
 import AppLogo from './app-logo';
 
@@ -65,6 +66,14 @@ const preferenceNavItems: NavItem[] = [
     }
 ];
 
+const reportNavItems: NavItem[] = [
+    {
+        title: 'Statistik Kunjungan',
+        url: '/statistics',
+        icon: BarChart3,
+    },
+];
+
 const footerNavItems: NavItem[] = [
     // {
     //     title: 'Repository',
@@ -97,6 +106,7 @@ export function AppSidebar() {
                 <NavMain items={mainNavItems} />
                 <NavMain title={'Master Data'} items={masterNavItems} />
                 <NavMain title={'Preferences'} items={preferenceNavItems} />
+                <NavMain title={'Report'} items={reportNavItems} />
             </SidebarContent>
 
             <SidebarFooter>

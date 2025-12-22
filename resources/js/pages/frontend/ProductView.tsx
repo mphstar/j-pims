@@ -9,6 +9,7 @@ import { NavDots } from '@/components/molecules/NavDots';
 import { ScrollProgress } from '@/components/molecules/ScrollProgress';
 import { FancyButton } from '@/components/atoms/FancyButton';
 import { calculatePersonalizationScore, getPersonalizationBadge, getPersonalizationDetails } from '@/utils/personalization';
+import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
 
 interface MetadataType {
     activity_level?: string;
@@ -177,7 +178,7 @@ export default function ProductView({ destination, product, products }: Props) {
                             ))}
                         </div>
                     )}
-                    <p className="text-white/90">{p.content || destination.content || ''}</p>
+                    <MarkdownRenderer content={p.content || destination.content || ''} className="text-white/90" />
 
                     {/* Action Buttons Row - Detail & CTA */}
                     <div className={"flex flex-wrap items-center gap-2 md:gap-3 pt-2 " + (alignVal === 'right' ? 'justify-end' : '')}>
@@ -200,7 +201,7 @@ export default function ProductView({ destination, product, products }: Props) {
                                 Detail Paket
                             </FancyButton>
                         )}
-                        
+
                         {/* CTA Button */}
                         {(p.cta_href || "#") && (
                             <FancyButton href={p.cta_href || "#"}>
@@ -251,105 +252,21 @@ export default function ProductView({ destination, product, products }: Props) {
         return () => obs.disconnect();
     }, [ready, SECTIONS.length]);
 
-    // Wheel event for snap scrolling
-    useEffect(() => {
-        if (!ready) return;
-        const el = containerRef.current;
-        if (!el) return;
-        const lastRef = { current: 0 };
-        const cooldown = 420;
-        const nearestIndex = () => {
-            const container = containerRef.current;
-            if (!container) return active;
-            const st = container.scrollTop;
-            const ch = container.clientHeight;
-            let best = 0;
-            let bestDist = Number.POSITIVE_INFINITY;
-            sectionRefs.current.forEach((sec, i) => {
-                if (!sec) return;
-                const mid = sec.offsetTop + sec.offsetHeight / 2;
-                const dist = Math.abs((st + ch / 2) - mid);
-                if (dist < bestDist) {
-                    bestDist = dist;
-                    best = i;
-                }
-            });
-            return best;
-        };
-        const onWheel = (e: WheelEvent) => {
-            if (isStabilizingRef.current) {
-                e.preventDefault();
-                return;
-            }
-            if (isAnimatingRef.current) {
-                e.preventDefault();
-                return;
-            }
-            if (Math.abs(e.deltaY) < Math.abs(e.deltaX)) return;
-            const now = performance.now();
-            if (now - lastRef.current < cooldown) return;
-            if (Math.abs(e.deltaY) < 40) return;
-            e.preventDefault();
-            lastRef.current = now;
-            const current = nearestIndex();
-            let next = current + (e.deltaY > 0 ? 1 : -1);
-            if (next < 0) next = 0;
-            else if (next >= SECTIONS.length) next = SECTIONS.length - 1;
-            if (next !== active) scrollToIndex(next);
-        };
-        el.addEventListener('wheel', onWheel, { passive: false });
-        return () => el.removeEventListener('wheel', onWheel);
-    }, [active, ready, SECTIONS.length]);
 
-    // Mobile natural snap assist
-    useEffect(() => {
-        if (!ready) return;
-        const el = containerRef.current;
-        if (!el) return;
-        const isCoarse = window.matchMedia('(pointer:coarse)').matches;
-        if (!isCoarse) return;
-        let idleTimer: number | null = null;
-        const IDLE_DELAY = 120;
-        const snapToNearest = () => {
-            if (isAnimatingRef.current) return;
-            const container = containerRef.current;
-            if (!container) return;
-            const scrollTop = container.scrollTop;
-            let best = 0;
-            let bestDist = Infinity;
-            sectionRefs.current.forEach((sec, i) => {
-                if (!sec) return;
-                const d = Math.abs(sec.offsetTop - scrollTop);
-                if (d < bestDist) {
-                    bestDist = d;
-                    best = i;
-                }
-            });
-            const target = sectionRefs.current[best];
-            if (!target) return;
-            const diff = Math.abs(target.offsetTop - scrollTop);
-            if (diff < 14) return;
-            container.scrollTo({ top: target.offsetTop, behavior: 'smooth' });
-        };
-        const onScroll = () => {
-            if (idleTimer) clearTimeout(idleTimer);
-            idleTimer = window.setTimeout(snapToNearest, IDLE_DELAY);
-        };
-        el.addEventListener('scroll', onScroll, { passive: true });
-        return () => {
-            el.removeEventListener('scroll', onScroll);
-            if (idleTimer) clearTimeout(idleTimer);
-        };
-    }, [active, ready, SECTIONS.length]);
+
+
 
     if (!ready) {
         return (
-            <div className="h-screen w-screen flex items-center justify-center bg-black text-white relative overflow-hidden" aria-busy="true" aria-label="Memuat produk">
+            <div className="h-screen w-screen flex items-center justify-center bg-black text-white relative overflow-hidden" aria-busy="true" aria-label="Memuat aset">
                 <div className="absolute inset-0 opacity-40 [mask-image:radial-gradient(circle_at_center,white,transparent_70%)] animate-pulse pointer-events-none bg-[conic-gradient(from_0deg,rgba(255,255,255,0.08),rgba(255,255,255,0)_55%,rgba(255,255,255,0.08))]" />
                 <div className="relative z-10 flex flex-col items-center gap-8 px-6">
-                    <div className="flex items-center gap-4">
+                    <div className="flex flex-col text-center items-center gap-4">
                         <Logo />
-                        <span className="font-semibold tracking-wide text-lg">J-PiMS</span>
+                        <div className="flex flex-col">
+                            <span className="font-semibold tracking-wide text-lg">J-PiMS</span>
+                            <span className="text-sm text-white/80 ">Jember Personalized Information Management System</span>
+                        </div>
                     </div>
                     <div className="w-64 h-2 bg-white/10 rounded-full overflow-hidden">
                         <div className="h-full bg-white transition-[width] duration-300 ease-out" style={{ width: `${Math.round(progress * 100)}%` }} />
@@ -374,25 +291,26 @@ export default function ProductView({ destination, product, products }: Props) {
                         {/* Search button */}
                         <Link
                             href={route('search')}
-                            className="px-3 h-9 rounded-md border border-white/15 bg-white/5 hover:bg-white/15 text-white/80 hover:text-white text-xs font-medium transition flex items-center gap-2"
+                            className="px-2 sm:px-3 h-9 rounded-md border border-white/15 bg-white/5 hover:bg-white/15 text-white/80 hover:text-white text-xs font-medium transition flex items-center justify-center gap-2"
                         >
-                            <svg 
-                                xmlns="http://www.w3.org/2000/svg" 
-                                fill="none" 
-                                viewBox="0 0 24 24" 
-                                strokeWidth={2} 
-                                stroke="currentColor" 
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                strokeWidth={2}
+                                stroke="currentColor"
                                 className="w-4 h-4"
                             >
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
                             </svg>
-                            Cari
+                            <span className="hidden sm:inline">Cari</span>
                         </Link>
                         <Link
                             href={route('home')}
-                            className="px-3 h-9 rounded-md border border-white/15 bg-white/5 hover:bg-white/15 text-white/80 hover:text-white text-xs font-medium transition flex items-center justify-center"
+                            className="px-2 sm:px-3 h-9 rounded-md border border-white/15 bg-white/5 hover:bg-white/15 text-white/80 hover:text-white text-xs font-medium transition flex items-center justify-center gap-2"
                         >
-                            Kembali
+                            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
+                            <span className="hidden sm:inline">Kembali</span>
                         </Link>
                     </div>
                 )}
@@ -403,7 +321,6 @@ export default function ProductView({ destination, product, products }: Props) {
                 data-scroll-root="true"
                 className="h-screen w-screen overflow-y-scroll snap-y snap-mandatory scrollbar-none relative bg-black"
                 style={{
-                    scrollPaddingTop: '56px',
                     scrollSnapType: 'y mandatory',
                     overflowY: 'scroll',
                 }}

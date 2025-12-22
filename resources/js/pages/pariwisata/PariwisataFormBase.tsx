@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useForm, router, usePage } from '@inertiajs/react';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
+import { MarkdownEditor } from '@/components/ui/MarkdownEditor';
+import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
@@ -50,17 +51,17 @@ export default function PariwisataFormBase({ item, mode, overlays = [], destinat
     const page = usePage().props as any;
     const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
 
-    const { data, setData, processing, errors, clearErrors } = useForm<{ [K in keyof typeof defaultValues]: (typeof defaultValues)[K] } & { background_image?: File | null }>({ 
-        ...defaultValues, 
+    const { data, setData, processing, errors, clearErrors } = useForm<{ [K in keyof typeof defaultValues]: (typeof defaultValues)[K] } & { background_image?: File | null }>({
+        ...defaultValues,
         background_image: null,
-        destination_type_ids: selectedDestinationTypeIds 
+        destination_type_ids: selectedDestinationTypeIds
     });
     const [bgPreview, setBgPreview] = useState<string | null>(null);
     const [isMobile, setIsMobile] = useState(false);
     const [previewOpen, setPreviewOpen] = useState(false);
     const [uploadingBg, setUploadingBg] = useState(false);
     const [bgError, setBgError] = useState<string | null>(null);
-    
+
     // Overlays state
     const [overlayList, setOverlayList] = useState<OverlayType[]>(overlays.map(o => ({ ...o, __dirty: false })));
     // overlay editor now inline (no dialog)
@@ -96,10 +97,10 @@ export default function PariwisataFormBase({ item, mode, overlays = [], destinat
 
     useEffect(() => {
         if (editing) {
-            setData({ 
-                ...defaultValues, 
+            setData({
+                ...defaultValues,
                 ...item,
-                destination_type_ids: selectedDestinationTypeIds 
+                destination_type_ids: selectedDestinationTypeIds
             });
         }
     }, [editing, item]);
@@ -231,11 +232,11 @@ export default function PariwisataFormBase({ item, mode, overlays = [], destinat
         if (overlay.__deleted) {
             // process delete only for existing overlay
             if (overlay.id > 0) {
-                        router.post(route('pariwisata.overlays.delete', overlay.id), {}, {
-                            onError: () => toast.error('Gagal hapus overlay'),
-                            onSuccess: () => { toast.success('Overlay dihapus'); },
-                            preserveScroll: true,
-                        });
+                router.post(route('pariwisata.overlays.delete', overlay.id), {}, {
+                    onError: () => toast.error('Gagal hapus overlay'),
+                    onSuccess: () => { toast.success('Overlay dihapus'); },
+                    preserveScroll: true,
+                });
             }
             setOverlayList(prev => prev.filter(o => o.id !== id)); // local immediate feedback; server will refresh props
             return;
@@ -249,26 +250,26 @@ export default function PariwisataFormBase({ item, mode, overlays = [], destinat
             if (overlay.object_fit) formData.append('object_fit', overlay.object_fit);
             if (overlay.width) formData.append('width', overlay.width.toString());
             if (overlay.height) formData.append('height', overlay.height.toString());
-                    router.post(route('pariwisata.overlays.store', item.id), formData, {
-                        onError: () => toast.error('Gagal simpan overlay baru'),
-                        onSuccess: () => toast.success('Overlay dibuat'),
-                        preserveScroll: true,
-                        forceFormData: true,
-                    });
+            router.post(route('pariwisata.overlays.store', item.id), formData, {
+                onError: () => toast.error('Gagal simpan overlay baru'),
+                onSuccess: () => toast.success('Overlay dibuat'),
+                preserveScroll: true,
+                forceFormData: true,
+            });
             // optimistic local reset (actual overlay data will re-sync when page props refresh)
             setOverlayList(prev => prev.map(o => o.id === overlay.id ? { ...o, __unsaved: false, __dirty: false } : o));
             dirtyRef.current.delete(id);
         } else if (overlay.__dirty) {
-                    router.post(route('pariwisata.overlays.update', overlay.id), {
+            router.post(route('pariwisata.overlays.update', overlay.id), {
                 position_horizontal: overlay.position_horizontal,
                 position_vertical: overlay.position_vertical,
                 object_fit: overlay.object_fit,
                 width: overlay.width,
                 height: overlay.height
             }, {
-                        onError: () => toast.error('Gagal update overlay'),
-                        onSuccess: () => toast.success('Overlay disimpan'),
-                        preserveScroll: true,
+                onError: () => toast.error('Gagal update overlay'),
+                onSuccess: () => toast.success('Overlay disimpan'),
+                preserveScroll: true,
             });
             setOverlayList(prev => prev.map(o => o.id === overlay.id ? { ...o, __dirty: false } : o));
             dirtyRef.current.delete(id);
@@ -335,7 +336,7 @@ export default function PariwisataFormBase({ item, mode, overlays = [], destinat
                         {data.label && <span className='text-xs uppercase tracking-wider bg-white/20 px-2 py-1 rounded'>{data.label}</span>}
                         <h1 className='text-7xl font-extrabold leading-none'>{data.title || 'Judul Belum Diisi'}</h1>
                         {data.subtitle && <h2 className='text-lg opacity-80'>{data.subtitle}</h2>}
-                        {data.content && <p className='text-sm leading-relaxed whitespace-pre-line'>{data.content}</p>}
+                        {data.content && <MarkdownRenderer content={data.content} className='text-sm leading-relaxed text-white/90' />}
                         {(data.cta_label || data.cta_href) && (
                             <a href={data.cta_href || '#'} className='inline-block bg-transparent border-[2px] mt-3 border-white px-4 py-2 rounded shadow hover:opacity-90 transition'>
                                 {data.cta_label || 'Lanjut'}
@@ -390,8 +391,8 @@ export default function PariwisataFormBase({ item, mode, overlays = [], destinat
                         <Input value={data.subtitle} onChange={e => setData('subtitle', e.target.value)} />
                     </div>
                     <div className='space-y-2'>
-                        <Label className='text-sm font-medium'>Content</Label>
-                        <Textarea value={data.content} rows={4} onChange={e => setData('content', e.target.value)} />
+                        <Label className='text-sm font-medium'>Content (Markdown)</Label>
+                        <MarkdownEditor value={data.content} onChange={(val) => setData('content', val)} height={200} />
                     </div>
                     <div className='space-y-2'>
                         <Label className='text-sm font-medium'>Background Image</Label>
@@ -432,15 +433,15 @@ export default function PariwisataFormBase({ item, mode, overlays = [], destinat
                     <div className='space-y-4 pt-4 border-t'>
                         <h3 className='text-sm font-semibold'>Jenis Destinasi</h3>
                         <p className='text-xs text-muted-foreground'>Pilih satu atau lebih jenis destinasi yang sesuai.</p>
-                        
+
                         <div className='grid grid-cols-2 gap-3'>
                             {destinationTypes.map(type => (
                                 <label key={type.id} className='flex items-center gap-2 p-3 border rounded cursor-pointer hover:bg-muted/50 transition-colors'>
                                     <Checkbox
                                         checked={data.destination_type_ids.includes(type.id)}
                                         onCheckedChange={(checked) => {
-                                            setData('destination_type_ids', checked 
-                                                ? [...data.destination_type_ids, type.id] 
+                                            setData('destination_type_ids', checked
+                                                ? [...data.destination_type_ids, type.id]
                                                 : data.destination_type_ids.filter(id => id !== type.id)
                                             );
                                         }}
@@ -646,7 +647,7 @@ const OverlayAligned: React.FC<{ overlay: OverlayType }> = ({ overlay }) => {
     const translateX = overlay.position_horizontal === 'center' || overlay.position_horizontal == null ? '-50%' : '0';
     const translateY = overlay.position_vertical === 'center' ? '-50%' : '0';
     style.transform = `translate(${translateX}, ${translateY})`;
-    
+
     // Size: support responsive % width (consistent with frontend)
     if (overlay.width != null) {
         const w = overlay.width as number;
@@ -659,10 +660,10 @@ const OverlayAligned: React.FC<{ overlay: OverlayType }> = ({ overlay }) => {
         }
     }
     if (overlay.height != null && overlay.height > 0) style.height = `${overlay.height}px`;
-    
+
     // Map custom 'crop' semantic to 'cover' for CSS object-fit
     const fit = overlay.object_fit === 'crop' ? 'cover' : (overlay.object_fit ?? 'contain');
-    
+
     // Image styling: match frontend logic so height-only cases work
     const widthSet = overlay.width != null && overlay.width > 0;
     const heightSet = overlay.height != null && overlay.height > 0;
@@ -671,10 +672,10 @@ const OverlayAligned: React.FC<{ overlay: OverlayType }> = ({ overlay }) => {
         width: widthSet ? '100%' : (heightSet ? 'auto' : '100%'),
         height: heightSet ? '100%' : 'auto'
     };
-    
+
     // Fallback max size if no explicit size set
     const containerClass = overlay.width || overlay.height ? '' : 'max-w-[240px] max-h-[240px]';
-    
+
     return (
         <div style={style} className={`select-none ${containerClass}`}>
             <img src={overlay.overlay_url} draggable={false} style={imgStyle} className='pointer-events-none' />
