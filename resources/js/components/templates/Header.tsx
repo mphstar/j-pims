@@ -50,7 +50,7 @@ export function Header({ active, onJump, sections, brand, backHref, actions, con
           <Logo />
           <div className="flex flex-col justify-center">
             <span className="text-white font-semibold tracking-wide text-base group-hover:opacity-90 leading-tight">{label}</span>
-            <span className="text-[10px] text-white/70 leading-tight group-hover:text-white/90">Jember Personalized Information Management System</span>
+            <span className="text-[10px] text-white/70 leading-tight group-hover:text-white/90">Jember Personalized Tourism Information Management System</span>
           </div>
         </Link>
         {/* <nav className="flex gap-5 text-sm">

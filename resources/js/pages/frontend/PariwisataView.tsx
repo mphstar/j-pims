@@ -699,7 +699,7 @@ export default function PariwisataView({
             <Logo />
             <div className="flex flex-col">
               <span className="font-semibold tracking-wide text-lg">J-PiMS</span>
-              <span className="text-sm text-white/80 ">Jember Personalized Information Management System</span>
+              <span className="text-sm text-white/80 ">Jember Personalized Tourism Information Management System</span>
             </div>
           </div>
           <div className="w-64 h-2 bg-white/10 rounded-full overflow-hidden">

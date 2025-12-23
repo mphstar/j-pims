@@ -142,9 +142,12 @@ export default function CeritaView({ stories, productHref }: Props) {
             <div className="h-screen w-screen flex items-center justify-center bg-black text-white relative overflow-hidden" aria-busy="true" aria-label="Memuat cerita">
                 <div className="absolute inset-0 opacity-40 [mask-image:radial-gradient(circle_at_center,white,transparent_70%)] animate-pulse pointer-events-none bg-[conic-gradient(from_0deg,rgba(255,255,255,0.08),rgba(255,255,255,0)_55%,rgba(255,255,255,0.08))]" />
                 <div className="relative z-10 flex flex-col items-center gap-8 px-6">
-                    <div className="flex items-center gap-4">
+                    <div className="flex flex-col text-center items-center gap-4">
                         <Logo />
-                        <span className="font-semibold tracking-wide text-lg">J-PiMS</span>
+                        <div className="flex flex-col">
+                            <span className="font-semibold tracking-wide text-lg">J-PiMS</span>
+                            <span className="text-sm text-white/80 ">Jember Personalized Tourism Information Management System</span>
+                        </div>
                     </div>
                     <div className="w-64 h-2 bg-white/10 rounded-full overflow-hidden">
                         <div className="h-full bg-white transition-[width] duration-300 ease-out" style={{ width: `${Math.round(progress * 100)}%` }} />

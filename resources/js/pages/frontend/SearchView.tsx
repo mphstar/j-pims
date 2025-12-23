@@ -49,7 +49,7 @@ interface Props {
 // Result Card Component
 function ResultCard({ result, personalizationScore }: { result: SearchResult; personalizationScore: number }) {
     const badge = getPersonalizationBadge(personalizationScore);
-    
+
     return (
         <Link
             href={result.url}
@@ -67,17 +67,16 @@ function ResultCard({ result, personalizationScore }: { result: SearchResult; pe
                     <div className="w-full h-full bg-gradient-to-br from-blue-600/20 to-purple-600/20" />
                 )}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
-                
+
                 {/* Type Badge & Recommendation Badge */}
                 <div className="absolute top-3 left-3 flex flex-col gap-2">
-                    <span className={`inline-flex items-center gap-1 px-2.5 md:px-3 py-0.5 md:py-1 rounded-full text-[10px] md:text-xs font-semibold text-white ${
-                        result.type === 'destination' 
-                            ? 'bg-blue-500/80' 
-                            : 'bg-purple-500/80'
-                    }`}>
+                    <span className={`inline-flex items-center gap-1 px-2.5 md:px-3 py-0.5 md:py-1 rounded-full text-[10px] md:text-xs font-semibold text-white ${result.type === 'destination'
+                        ? 'bg-blue-500/80'
+                        : 'bg-purple-500/80'
+                        }`}>
                         {result.type === 'destination' ? '📍 Destinasi' : '🎫 Paket'}
                     </span>
-                    
+
                     {/* Personalization Badge */}
                     {badge && (
                         <span className={`inline-flex items-center gap-1 px-2.5 md:px-3 py-0.5 md:py-1 rounded-full text-[10px] md:text-xs font-semibold text-white ${badge.color}`}>
@@ -92,11 +91,11 @@ function ResultCard({ result, personalizationScore }: { result: SearchResult; pe
                 {result.label && (
                     <div className="text-xs text-blue-400 font-medium mb-1">{result.label}</div>
                 )}
-                
+
                 <h3 className="text-lg font-bold text-white mb-2 line-clamp-2 group-hover:text-blue-400 transition-colors">
                     {result.title}
                 </h3>
-                
+
                 {result.subtitle && (
                     <p className="text-sm text-white/70 mb-3 line-clamp-2">{result.subtitle}</p>
                 )}
@@ -127,7 +126,7 @@ function ResultCard({ result, personalizationScore }: { result: SearchResult; pe
                         )}
                         {result.metadata.duration_hours && (
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-white/10 rounded-full text-[10px] text-white/70">
-                                ⏱️ {result.metadata.duration_hours >= 24 
+                                ⏱️ {result.metadata.duration_hours >= 24
                                     ? `${Math.floor(result.metadata.duration_hours / 24)}D`
                                     : `${result.metadata.duration_hours}J`}
                             </span>
@@ -147,18 +146,18 @@ function ResultCard({ result, personalizationScore }: { result: SearchResult; pe
     );
 }
 
-export default function SearchView({ 
-    query: initialQuery, 
-    filters: initialFilters, 
+export default function SearchView({
+    query: initialQuery,
+    filters: initialFilters,
     results: initialResults,
     recommendations,
     allDestinationTypes,
 }: Props) {
     const [query, setQuery] = useState(initialQuery || '');
     const [showFilters, setShowFilters] = useState(false);
-    
+
     const safeStorage = typeof window !== 'undefined' ? window.localStorage : undefined;
-    
+
     // Load personalization preferences
     const [activityLevels, setActivityLevels] = useState<string[]>(() => {
         try {
@@ -184,7 +183,7 @@ export default function SearchView({
             return single ? [single] : [];
         } catch { return []; }
     });
-    
+
     const [selectedDestinationTypes, setSelectedDestinationTypes] = useState<number[]>(() => {
         try {
             // Check if there are filters from URL first
@@ -198,7 +197,7 @@ export default function SearchView({
             return [];
         }
     });
-    
+
     useEffect(() => {
         if (safeStorage) {
             if (selectedDestinationTypes.length > 0) {
@@ -209,7 +208,7 @@ export default function SearchView({
             }
         }
     }, [selectedDestinationTypes, safeStorage]);
-    
+
     // Calculate personalization scores and sort results
     const sortedResults = useMemo(() => {
         return initialResults.map(result => {
@@ -221,7 +220,7 @@ export default function SearchView({
             return { ...result, personalizationScore: score };
         }).sort((a, b) => b.personalizationScore - a.personalizationScore);
     }, [initialResults, activityLevels, priceRanges, bestSeasons]);
-    
+
     // Calculate scores for recommendations too
     const sortedRecommendations = useMemo(() => {
         return recommendations.map(item => {
@@ -233,7 +232,7 @@ export default function SearchView({
             return { ...item, personalizationScore: score };
         }).sort((a, b) => b.personalizationScore - a.personalizationScore);
     }, [recommendations, activityLevels, priceRanges, bestSeasons]);
-    
+
     const hasSearched = initialQuery !== '' || (initialFilters.destination_type_ids && initialFilters.destination_type_ids.length > 0);
     const destinations = sortedResults.filter(item => item.type === 'destination');
     const products = sortedResults.filter(item => item.type === 'product');
@@ -241,12 +240,12 @@ export default function SearchView({
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
         const searchFilters: Record<string, any> = {};
-        
+
         // Only add destination types filter if there are selected types
         if (selectedDestinationTypes.length > 0) {
             searchFilters.destination_type_ids = selectedDestinationTypes;
         }
-        
+
         router.get(route('search'), { q: query, ...searchFilters }, {
             preserveState: false,
         });
@@ -254,34 +253,34 @@ export default function SearchView({
 
     const clearFilters = () => {
         setSelectedDestinationTypes([]);
-        
+
         // Also remove from localStorage
         if (safeStorage) {
             safeStorage.removeItem('jp_selected_destination_types');
         }
-        
+
         setShowFilters(false);
         router.get(route('search'), { q: query }, {
             preserveState: false,
         });
     };
-    
+
     const toggleDestinationType = (typeId: number) => {
-        setSelectedDestinationTypes(prev => 
-            prev.includes(typeId) 
-                ? prev.filter(id => id !== typeId) 
+        setSelectedDestinationTypes(prev =>
+            prev.includes(typeId)
+                ? prev.filter(id => id !== typeId)
                 : [...prev, typeId]
         );
     };
 
     const handlePersonalizationChange = () => {
         const searchFilters: Record<string, any> = {};
-        
+
         // Only add destination types filter if there are selected types
         if (selectedDestinationTypes.length > 0) {
             searchFilters.destination_type_ids = selectedDestinationTypes;
         }
-        
+
         setShowFilters(false);
         router.get(route('search'), { q: query, ...searchFilters }, {
             preserveState: false,
@@ -291,7 +290,7 @@ export default function SearchView({
     return (
         <>
             <Head title={query ? `Cari: ${query}` : 'Cari Destinasi & Paket'} />
-            
+
             {/* Header */}
             <div className="fixed top-0 left-0 right-0 z-50 bg-black/80 backdrop-blur-md border-b border-white/10">
                 <div className="max-w-7xl mx-auto px-3 md:px-4 py-3 md:py-4">
@@ -299,17 +298,19 @@ export default function SearchView({
                     <div className="md:hidden space-y-3">
                         {/* Top Row - Logo & Buttons */}
                         <div className="flex items-center justify-between gap-2">
-                            <Link href={route('home')} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-                                <Logo />
-                                <span className="font-semibold text-white text-sm">J-PiMS</span>
+                            <Link href={route('home')} className="flex flex-col justify-center gap-0.5 hover:opacity-80 transition-opacity">
+                                <div className="flex items-center gap-2">
+                                    <Logo />
+                                    <span className="font-semibold text-white text-lg hidden md:block">J-PiMS</span>
+                                </div>
+                                <span className="text-[10px] text-white/80 leading-tight hidden md:block">Jember Personalized Tourism Information Management System</span>
                             </Link>
-                            
+
                             <div className="flex items-center gap-2">
                                 <button
                                     onClick={() => setShowFilters(!showFilters)}
-                                    className={`px-3 py-1.5 border border-white/20 rounded-full text-white text-xs font-medium transition-all flex items-center gap-1.5 ${
-                                        showFilters ? 'bg-blue-500 hover:bg-blue-600' : 'bg-white/10 hover:bg-white/20'
-                                    }`}
+                                    className={`px-3 py-1.5 border border-white/20 rounded-full text-white text-xs font-medium transition-all flex items-center gap-1.5 ${showFilters ? 'bg-blue-500 hover:bg-blue-600' : 'bg-white/10 hover:bg-white/20'
+                                        }`}
                                 >
                                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
@@ -322,7 +323,7 @@ export default function SearchView({
                                 </Link>
                             </div>
                         </div>
-                        
+
                         {/* Bottom Row - Search */}
                         <form onSubmit={handleSearch} className="w-full">
                             <div className="relative">
@@ -339,14 +340,17 @@ export default function SearchView({
                             </div>
                         </form>
                     </div>
-                    
+
                     {/* Desktop Layout */}
                     <div className="hidden md:flex items-center gap-4">
-                        <Link href={route('home')} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+                        <Link href={route('home')} className="flex Items-center gap-3 hover:opacity-80 transition-opacity group">
                             <Logo />
-                            <span className="font-semibold text-white text-lg">J-PiMS</span>
+                            <div className="flex flex-col justify-center">
+                                <span className="font-semibold text-white text-lg leading-tight">J-PiMS</span>
+                                <span className="text-[10px] text-white/70 leading-tight group-hover:text-white/90">Jember Personalized Information Management System</span>
+                            </div>
                         </Link>
-                        
+
                         <form onSubmit={handleSearch} className="flex-1 max-w-2xl">
                             <div className="relative">
                                 <input
@@ -364,9 +368,8 @@ export default function SearchView({
 
                         <button
                             onClick={() => setShowFilters(!showFilters)}
-                            className={`px-4 py-2 border border-white/20 rounded-full text-white text-sm font-medium transition-all flex items-center gap-2 ${
-                                showFilters ? 'bg-blue-500 hover:bg-blue-600' : 'bg-white/10 hover:bg-white/20'
-                            }`}
+                            className={`px-4 py-2 border border-white/20 rounded-full text-white text-sm font-medium transition-all flex items-center gap-2 ${showFilters ? 'bg-blue-500 hover:bg-blue-600' : 'bg-white/10 hover:bg-white/20'
+                                }`}
                         >
                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
@@ -401,7 +404,7 @@ export default function SearchView({
                                 </h2>
                                 <p className="text-white/60">Pilih jenis destinasi yang Anda minati</p>
                             </div>
-                            
+
                             <div className="mb-6">
                                 <label className="block text-sm text-white/80 font-medium mb-3">Jenis Destinasi</label>
                                 <div className="flex flex-wrap gap-2">
@@ -409,11 +412,10 @@ export default function SearchView({
                                         <button
                                             key={type.id}
                                             onClick={() => toggleDestinationType(type.id)}
-                                            className={`px-4 py-2 rounded-full text-sm font-medium transition-all flex items-center gap-2 ${
-                                                selectedDestinationTypes.includes(type.id)
-                                                    ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/30'
-                                                    : 'bg-white/10 text-white/70 hover:bg-white/20'
-                                            }`}
+                                            className={`px-4 py-2 rounded-full text-sm font-medium transition-all flex items-center gap-2 ${selectedDestinationTypes.includes(type.id)
+                                                ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/30'
+                                                : 'bg-white/10 text-white/70 hover:bg-white/20'
+                                                }`}
                                         >
                                             <span>{type.icon}</span>
                                             <span>{type.title}</span>
@@ -479,8 +481,8 @@ export default function SearchView({
                                             </h2>
                                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                                 {destinations.map((result) => (
-                                                    <ResultCard 
-                                                        key={`destination-${result.id}`} 
+                                                    <ResultCard
+                                                        key={`destination-${result.id}`}
                                                         result={result}
                                                         personalizationScore={result.personalizationScore || 0}
                                                     />
@@ -497,8 +499,8 @@ export default function SearchView({
                                             </h2>
                                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                                 {products.map((result) => (
-                                                    <ResultCard 
-                                                        key={`product-${result.id}`} 
+                                                    <ResultCard
+                                                        key={`product-${result.id}`}
                                                         result={result}
                                                         personalizationScore={result.personalizationScore || 0}
                                                     />
@@ -539,7 +541,7 @@ export default function SearchView({
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                             {sortedRecommendations.map((item) => {
                                 const badge = getPersonalizationBadge(item.personalizationScore || 0);
-                                
+
                                 return (
                                     <Link
                                         key={`rec-${item.type}-${item.id}`}
@@ -557,16 +559,15 @@ export default function SearchView({
                                                 <div className="w-full h-full bg-gradient-to-br from-blue-600/20 to-purple-600/20" />
                                             )}
                                             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
-                                            
+
                                             <div className="absolute top-2 left-2 flex flex-col gap-1">
-                                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold text-white ${
-                                                    item.type === 'destination' 
-                                                        ? 'bg-blue-500/80' 
-                                                        : 'bg-purple-500/80'
-                                                }`}>
+                                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold text-white ${item.type === 'destination'
+                                                    ? 'bg-blue-500/80'
+                                                    : 'bg-purple-500/80'
+                                                    }`}>
                                                     {item.type === 'destination' ? '📍' : '🎫'}
                                                 </span>
-                                                
+
                                                 {/* Personalization Badge */}
                                                 {badge && (
                                                     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold text-white ${badge.color}`}>
@@ -580,11 +581,11 @@ export default function SearchView({
                                             {item.label && (
                                                 <div className="text-[10px] text-blue-400 font-medium mb-1">{item.label}</div>
                                             )}
-                                            
+
                                             <h3 className="text-sm font-bold text-white mb-1 line-clamp-2 group-hover:text-blue-400 transition-colors">
                                                 {item.title}
                                             </h3>
-                                            
+
                                             {item.subtitle && (
                                                 <p className="text-xs text-white/70 line-clamp-1 mb-2">{item.subtitle}</p>
                                             )}
@@ -608,7 +609,7 @@ export default function SearchView({
                                                     )}
                                                     {item.metadata.duration_hours && (
                                                         <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-white/10 rounded text-[9px] text-white/70">
-                                                            ⏱️ {item.metadata.duration_hours >= 24 
+                                                            ⏱️ {item.metadata.duration_hours >= 24
                                                                 ? `${Math.floor(item.metadata.duration_hours / 24)}D`
                                                                 : `${item.metadata.duration_hours}J`}
                                                         </span>
